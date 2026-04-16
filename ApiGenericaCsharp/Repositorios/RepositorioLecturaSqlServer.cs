@@ -650,6 +650,34 @@ namespace ApiGenericaCsharp.Repositorios
                 throw new InvalidOperationException($"Error SQL al obtener diagnóstico: {ex.Message}", ex);
             }
         }
+
+
+
+        public Task<int> EliminarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves)
+        {
+            throw new NotImplementedException(
+                "EliminarCompuestaAsync aún no está implementado para este proveedor. " +
+                "Use el repositorio de PostgreSQL o implemente este método."
+            );
+        }
+
+        public Task<int> ActualizarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves,
+            Dictionary<string, object?> datos,
+            string? camposEncriptar = null)
+        {
+            throw new NotImplementedException(
+                "ActualizarCompuestaAsync aún no está implementado para este proveedor. " +
+                "Use el repositorio de PostgreSQL o implemente este método."
+            );
+        }
+
+
     }
 }
 
