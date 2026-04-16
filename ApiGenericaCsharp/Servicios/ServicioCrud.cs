@@ -615,7 +615,143 @@ namespace ApiGenericaCsharp.Servicios
                 );
             }
         }
-//aquí se puede agregar más métodos siguiendo el mismo patrón
+
+
+
+        /// <summary>
+        /// Implementa la eliminación con clave primaria COMPUESTA aplicando reglas de negocio.
+        ///
+        /// Proceso: Validación → Normalización → Delegación al repositorio
+        /// Reutiliza el mismo patrón que EliminarAsync (PK simple) pero validando una lista de pares.
+        /// </summary>
+        public async Task<int> EliminarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves
+        )
+        {
+            // FASE 1: VALIDACIONES DE REGLAS DE NEGOCIO
+            if (string.IsNullOrWhiteSpace(nombreTabla))
+                throw new ArgumentException("El nombre de la tabla no puede estar vacío.", nameof(nombreTabla));
+
+            if (claves == null || claves.Count == 0)
+                throw new ArgumentException("Debe proporcionar al menos una clave para identificar el registro.", nameof(claves));
+
+            if (claves.Count < 2)
+                throw new ArgumentException(
+                    "EliminarCompuestaAsync requiere al menos 2 columnas clave. " +
+                    "Para PK simple use EliminarAsync.",
+                    nameof(claves)
+                );
+
+            // Validar que cada par tenga nombre y valor no vacíos
+            foreach (var (nombre, valor) in claves)
+            {
+                if (string.IsNullOrWhiteSpace(nombre))
+                    throw new ArgumentException("Todos los nombres de columna clave deben tener un valor.", nameof(claves));
+
+                if (string.IsNullOrWhiteSpace(valor))
+                    throw new ArgumentException(
+                        $"El valor de la columna clave '{nombre}' no puede estar vacío.",
+                        nameof(claves)
+                    );
+            }
+
+            // VALIDACIÓN DE TABLAS PROHIBIDAS (usando la política inyectada)
+            if (!_politicaTablasProhibidas.EsTablaPermitida(nombreTabla))
+                throw new UnauthorizedAccessException(
+                    $"Acceso denegado: La tabla '{nombreTabla}' está restringida y no puede ser modificada."
+                );
+
+            // FASE 2: NORMALIZACIÓN DE PARÁMETROS
+            string? esquemaNormalizado = string.IsNullOrWhiteSpace(esquema) ? null : esquema.Trim();
+
+            // Normalizar cada par: aplicar Trim() a nombre y valor
+            var clavesNormalizadas = claves
+                .Select(c => (nombre: c.nombre.Trim(), valor: c.valor.Trim()))
+                .ToList();
+
+            // FASE 3: DELEGACIÓN AL REPOSITORIO (aplicando DIP)
+            // Requiere que IRepositorioLecturaTabla exponga el método EliminarCompuestaAsync
+            return await _repositorioLectura.EliminarCompuestaAsync(
+                nombreTabla,
+                esquemaNormalizado,
+                clavesNormalizadas
+            );
+        }
+
+        /// <summary>
+        /// Implementa la actualización con clave primaria COMPUESTA aplicando reglas de negocio.
+        ///
+        /// Proceso: Validación → Normalización → Delegación al repositorio
+        /// Reutiliza el mismo patrón que ActualizarAsync (PK simple) pero validando una lista de pares.
+        /// </summary>
+        public async Task<int> ActualizarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves,
+            Dictionary<string, object?> datos,
+            string? camposEncriptar = null
+        )
+        {
+            // FASE 1: VALIDACIONES DE REGLAS DE NEGOCIO
+            if (string.IsNullOrWhiteSpace(nombreTabla))
+                throw new ArgumentException("El nombre de la tabla no puede estar vacío.", nameof(nombreTabla));
+
+            if (claves == null || claves.Count == 0)
+                throw new ArgumentException("Debe proporcionar al menos una clave para identificar el registro.", nameof(claves));
+
+            if (claves.Count < 2)
+                throw new ArgumentException(
+                    "ActualizarCompuestaAsync requiere al menos 2 columnas clave. " +
+                    "Para PK simple use ActualizarAsync.",
+                    nameof(claves)
+                );
+
+            // Validar que cada par tenga nombre y valor no vacíos
+            foreach (var (nombre, valor) in claves)
+            {
+                if (string.IsNullOrWhiteSpace(nombre))
+                    throw new ArgumentException("Todos los nombres de columna clave deben tener un valor.", nameof(claves));
+
+                if (string.IsNullOrWhiteSpace(valor))
+                    throw new ArgumentException(
+                        $"El valor de la columna clave '{nombre}' no puede estar vacío.",
+                        nameof(claves)
+                    );
+            }
+
+            if (datos == null || !datos.Any())
+                throw new ArgumentException("Los datos a actualizar no pueden estar vacíos.", nameof(datos));
+
+            // VALIDACIÓN DE TABLAS PROHIBIDAS (usando la política inyectada)
+            if (!_politicaTablasProhibidas.EsTablaPermitida(nombreTabla))
+                throw new UnauthorizedAccessException(
+                    $"Acceso denegado: La tabla '{nombreTabla}' está restringida y no puede ser modificada."
+                );
+
+            // FASE 2: NORMALIZACIÓN DE PARÁMETROS
+            string? esquemaNormalizado = string.IsNullOrWhiteSpace(esquema) ? null : esquema.Trim();
+            string? camposEncriptarNormalizados = string.IsNullOrWhiteSpace(camposEncriptar) ? null : camposEncriptar.Trim();
+
+            // Normalizar cada par: aplicar Trim() a nombre y valor
+            var clavesNormalizadas = claves
+                .Select(c => (nombre: c.nombre.Trim(), valor: c.valor.Trim()))
+                .ToList();
+
+            // FASE 3: DELEGACIÓN AL REPOSITORIO (aplicando DIP)
+            // Requiere que IRepositorioLecturaTabla exponga el método ActualizarCompuestaAsync
+            return await _repositorioLectura.ActualizarCompuestaAsync(
+                nombreTabla,
+                esquemaNormalizado,
+                clavesNormalizadas,
+                datos,
+                camposEncriptarNormalizados
+            );
+        }
+
+
+        //aquí se puede agregar más métodos siguiendo el mismo patrón
     }
 }
 
