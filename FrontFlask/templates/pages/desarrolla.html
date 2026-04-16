@@ -1,0 +1,172 @@
+{#
+    desarrolla.html - Pagina CRUD para la tabla intermedia desarrolla.
+
+    Campos:
+        - docente     (INT, FK -> docente.cedula)  — PK compuesta parte 1
+        - proyecto    (INT, FK -> proyecto.id)     — PK compuesta parte 2
+        - rol         (VARCHAR 45)                 — editable
+        - descripcion (VARCHAR 256)                — editable
+
+    Clave primaria compuesta: (docente, proyecto)
+
+    Permite Crear, Editar (solo rol y descripcion) y Eliminar.
+#}
+
+{% extends 'layout/base.html' %}
+
+{% block title %}Desarrolla{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h3>Desarrolla (Docente por Proyecto)</h3>
+
+    {# ───────── BOTON NUEVO REGISTRO ───────── #}
+    {% if not mostrar_formulario %}
+        <a href="{{ url_for('desarrolla.index', accion='nuevo') }}"
+           class="btn btn-primary mb-3">
+            Nuevo Registro
+        </a>
+    {% endif %}
+
+    {# ───────── LIMITE DE REGISTROS ───────── #}
+    <form method="GET" action="{{ url_for('desarrolla.index') }}"
+          class="d-flex align-items-center mb-3">
+        <label class="form-label me-2 mb-0">Limite:</label>
+        <input class="form-control me-2" type="number" name="limite"
+               style="width:100px" value="{{ limite or '' }}" />
+        <button class="btn btn-outline-secondary" type="submit">Cargar</button>
+    </form>
+
+    {# ───────── FORMULARIO (CREAR / EDITAR) ───────── #}
+    {% if mostrar_formulario %}
+        <div class="card mb-3">
+            <div class="card-header">
+                {{ "Editar Registro" if editando else "Nuevo Registro" }}
+            </div>
+            <div class="card-body">
+                <form method="POST"
+                      action="{{ url_for('desarrolla.actualizar') if editando else url_for('desarrolla.crear') }}">
+
+                    {# En modo editar, la PK va como campos ocultos (no se puede cambiar) #}
+                    {% if editando %}
+                        <input type="hidden" name="docente"  value="{{ registro.docente }}" />
+                        <input type="hidden" name="proyecto" value="{{ registro.proyecto }}" />
+                    {% endif %}
+
+                    <div class="row">
+
+                        {# ── Docente: select en crear, texto readonly en editar ── #}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Docente</label>
+                            {% if editando %}
+                                {# Mostrar el nombre del docente de forma legible #}
+                                {% set d = docentes | selectattr('cedula', 'equalto', registro.docente) | first %}
+                                <input class="form-control" type="text"
+                                       value="{{ (d.nombres ~ ' ' ~ d.apellidos) if d else registro.docente }}"
+                                       readonly />
+                            {% else %}
+                                <select class="form-select" name="docente" required>
+                                    <option value="">-- Seleccione un docente --</option>
+                                    {% for d in docentes %}
+                                        <option value="{{ d.cedula }}">{{ d.nombres }} {{ d.apellidos }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% endif %}
+                        </div>
+
+                        {# ── Proyecto: select en crear, texto readonly en editar ── #}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Proyecto</label>
+                            {% if editando %}
+                                {% set p = proyectos | selectattr('id', 'equalto', registro.proyecto) | first %}
+                                <input class="form-control" type="text"
+                                       value="{{ p.titulo if p else registro.proyecto }}"
+                                       readonly />
+                            {% else %}
+                                <select class="form-select" name="proyecto" required>
+                                    <option value="">-- Seleccione un proyecto --</option>
+                                    {% for p in proyectos %}
+                                        <option value="{{ p.id }}">{{ p.titulo }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% endif %}
+                        </div>
+
+                        {# ── Rol ── #}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Rol</label>
+                            <input class="form-control" type="text" name="rol"
+                                   maxlength="45"
+                                   value="{{ registro.rol if registro else '' }}" />
+                        </div>
+
+                        {# ── Descripcion ── #}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Descripcion</label>
+                            <textarea class="form-control" name="descripcion"
+                                      maxlength="256" rows="3">{{ registro.descripcion if registro else '' }}</textarea>
+                        </div>
+
+                    </div>
+
+                    <button class="btn btn-success me-2" type="submit">Guardar</button>
+                    <a href="{{ url_for('desarrolla.index') }}" class="btn btn-secondary">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+    {# ───────── TABLA DE REGISTROS ───────── #}
+    {% if registros %}
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Docente</th>
+                    <th>Proyecto</th>
+                    <th>Rol</th>
+                    <th>Descripcion</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reg in registros %}
+                <tr>
+                    {# Mostrar nombre del docente a partir de su cedula #}
+                    <td>
+                        {% set d = docentes | selectattr('cedula', 'equalto', reg.docente) | first %}
+                        {{ (d.nombres ~ ' ' ~ d.apellidos) if d else reg.docente }}
+                    </td>
+
+                    {# Mostrar titulo del proyecto a partir de su id #}
+                    <td>
+                        {% set p = proyectos | selectattr('id', 'equalto', reg.proyecto) | first %}
+                        {{ p.titulo if p else reg.proyecto }}
+                    </td>
+
+                    <td>{{ reg.rol }}</td>
+                    <td>{{ reg.descripcion }}</td>
+
+                    <td>
+                        {# Boton Editar: pasa las dos partes de la PK por URL #}
+                        <a href="{{ url_for('desarrolla.index', accion='editar', clave_docente=reg.docente, clave_proyecto=reg.proyecto) }}"
+                           class="btn btn-warning btn-sm me-1">Editar</a>
+
+                        {# Boton Eliminar: envia las dos partes de la PK como campos ocultos #}
+                        <form method="POST" action="{{ url_for('desarrolla.eliminar') }}"
+                              style="display:inline"
+                              onsubmit="return confirm('Eliminar este registro?')">
+                            <input type="hidden" name="docente"  value="{{ reg.docente }}" />
+                            <input type="hidden" name="proyecto" value="{{ reg.proyecto }}" />
+                            <button class="btn btn-danger btn-sm" type="submit">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-warning">No se encontraron registros en la tabla desarrolla.</div>
+    {% endif %}
+
+</div>
+{% endblock %}
