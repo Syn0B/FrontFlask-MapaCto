@@ -1,0 +1,54 @@
+# ══════════════════════════════════════════════
+# .gitignore — Raiz del repositorio (Entrega2-MapaCto)
+# Cubre tanto ApiGenericaCsharp (C#) como FrontFlask (Python/Flask)
+# ══════════════════════════════════════════════
+
+
+# ── C# / .NET ──────────────────────────────────
+# Carpetas de compilacion generadas por dotnet build
+bin/
+obj/
+
+# Carpeta de configuracion de Visual Studio (workspace local)
+.vs/
+
+# Archivos de configuracion local de usuario (Visual Studio)
+*.user
+*.suo
+
+
+# ── Python / Flask ─────────────────────────────
+# Entorno virtual de Python (no se sube: cada uno instala con pip install -r requirements.txt)
+venv/
+
+# Archivos compilados de Python
+__pycache__/
+*.pyc
+*.pyo
+
+
+# ── IDE ────────────────────────────────────────
+# Configuracion local de VS Code del frontend Flask (no es necesaria para el equipo)
+FrontFlask/.vscode/
+
+# Configuracion de JetBrains (PyCharm, Rider, etc.)
+.idea/
+
+
+# ── Entorno y secretos ─────────────────────────
+# Variables de entorno con credenciales (NUNCA subir)
+.env
+
+# Configuracion de desarrollo de ASP.NET (puede contener connection strings locales)
+appsettings.Development.json
+
+
+# ── Sistema operativo ──────────────────────────
+.DS_Store
+Thumbs.db
+
+
+
+# ── Archivos markdown ─────────
+Commits_Recomendados.md
+Tutorial_Simplificado.md
