@@ -44,6 +44,7 @@ from routes.ac_proyecto import bp as ac_proyecto_bp
 from routes.docente_producto import bp as docente_producto_bp
 from routes.aliado_proyecto import bp as aliado_proyecto_bp
 from routes.desarrolla import bp as desarrolla_bp
+from routes.producto import bp as producto_bp
 
 
 # register_blueprint() conecta las rutas del Blueprint a la aplicacion Flask.
@@ -59,6 +60,7 @@ app.register_blueprint(ac_proyecto_bp)
 app.register_blueprint(docente_producto_bp)
 app.register_blueprint(aliado_proyecto_bp)
 app.register_blueprint(desarrolla_bp)
+app.register_blueprint(producto_bp)
 
 
 # ══════════════════════════════════════════════

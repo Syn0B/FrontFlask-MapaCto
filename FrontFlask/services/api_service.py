@@ -220,6 +220,9 @@ class ApiService:
 
             if not respuesta.ok:
                 mensaje = contenido.get("mensaje", "Error al ejecutar el procedimiento.")
+                detalle = contenido.get("detalle") or contenido.get("errorInterno")
+                if detalle:
+                    mensaje = f"{mensaje} Detalle: {detalle}"
                 return (False, mensaje)
 
             resultados = contenido.get("resultados", [])
