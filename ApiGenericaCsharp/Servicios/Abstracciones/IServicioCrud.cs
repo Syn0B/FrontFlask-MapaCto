@@ -311,6 +311,53 @@ namespace ApiGenericaCsharp.Servicios.Abstracciones
             string valorContrasena
         );
 
+
+
+        /// <summary>
+        /// Elimina un registro identificado por una clave primaria COMPUESTA (2 o más columnas)
+        /// aplicando reglas de negocio y validaciones.
+        ///
+        /// Pensado para tablas intermedias resultantes de relaciones N:M, donde la PK
+        /// está formada por las FKs a las dos (o más) tablas relacionadas.
+        /// </summary>
+        /// <param name="nombreTabla">Nombre de la tabla intermedia</param>
+        /// <param name="esquema">Esquema de la tabla (opcional)</param>
+        /// <param name="claves">
+        /// Lista de pares (nombreColumna, valor) que componen la PK.
+        /// Ejemplo para palabras_clave: [("proyecto","1"), ("termino_clave","inteligencia")]
+        /// </param>
+        /// <returns>Número de filas eliminadas (0 si no se encontró, >0 si se eliminó)</returns>
+        Task<int> EliminarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves
+        );
+
+        /// <summary>
+        /// Actualiza un registro identificado por una clave primaria COMPUESTA (2 o más columnas)
+        /// aplicando reglas de negocio y validaciones.
+        ///
+        /// Útil para tablas intermedias que tienen columnas adicionales además de la PK
+        /// (por ejemplo, una intermedia con campos de fecha, cantidad, observaciones, etc.).
+        /// </summary>
+        /// <param name="nombreTabla">Nombre de la tabla intermedia</param>
+        /// <param name="esquema">Esquema de la tabla (opcional)</param>
+        /// <param name="claves">
+        /// Lista de pares (nombreColumna, valor) que componen la PK.
+        /// Ejemplo: [("docente","3"), ("proyecto","7")]
+        /// </param>
+        /// <param name="datos">Nuevos valores de las columnas no-clave</param>
+        /// <param name="camposEncriptar">Campos que deben ser encriptados, separados por coma (opcional)</param>
+        /// <returns>Número de filas afectadas (0 si no se encontró, >0 si se actualizó)</returns>
+        Task<int> ActualizarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves,
+            Dictionary<string, object?> datos,
+            string? camposEncriptar = null
+        );
+
+
         //aquí se pude agregar más métodos según se necesiten
     }
 }

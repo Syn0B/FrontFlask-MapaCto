@@ -210,7 +210,48 @@ namespace ApiGenericaCsharp.Repositorios.Abstracciones
         /// </exception>
         Task<Dictionary<string, object?>> ObtenerDiagnosticoConexionAsync();
 
-// NOTA: No se incluye método para obtener una sola fila por clave primaria
+
+
+        /// <summary>
+        /// Elimina un registro identificado por una clave primaria COMPUESTA (2 o más columnas).
+        ///
+        /// Pensado para tablas intermedias resultantes de relaciones N:M, donde la PK
+        /// está formada por las FKs a las tablas relacionadas.
+        /// </summary>
+        /// <param name="nombreTabla">Nombre de la tabla intermedia</param>
+        /// <param name="esquema">Esquema de la tabla (opcional)</param>
+        /// <param name="claves">
+        /// Lista de pares (nombreColumna, valor) que componen la PK.
+        /// Ejemplo: [("proyecto","1"), ("termino_clave","inteligencia")]
+        /// </param>
+        /// <returns>Número de filas eliminadas (0 si no se encontró el registro)</returns>
+        Task<int> EliminarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves
+        );
+
+        /// <summary>
+        /// Actualiza un registro identificado por una clave primaria COMPUESTA (2 o más columnas).
+        ///
+        /// Útil para tablas intermedias que tienen columnas adicionales además de la PK.
+        /// </summary>
+        /// <param name="nombreTabla">Nombre de la tabla intermedia</param>
+        /// <param name="esquema">Esquema de la tabla (opcional)</param>
+        /// <param name="claves">Lista de pares (nombreColumna, valor) que componen la PK</param>
+        /// <param name="datos">Nuevos valores de las columnas no-clave</param>
+        /// <param name="camposEncriptar">Campos a encriptar separados por coma (opcional)</param>
+        /// <returns>Número de filas afectadas (0 si no se encontró el registro)</returns>
+        Task<int> ActualizarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves,
+            Dictionary<string, object?> datos,
+            string? camposEncriptar = null
+        );
+
+
+        // NOTA: No se incluye método para obtener una sola fila por clave primaria
         // porque ObtenerPorClaveAsync puede devolver múltiples filas si la clave no es única.
         // Si se necesita garantizar unicidad, se puede implementar en la lógica de negocio.
     }
