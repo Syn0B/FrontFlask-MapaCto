@@ -1,168 +1,235 @@
 """
-proyecto.py - Blueprint con las rutas CRUD para la tabla Proyecto.
+proyecto.py - Blueprint maestro-detalle para Proyecto y sus Productos.
 
-Campos de la tabla:
-    - id    (clave primaria, texto)
-    - titulo    (texto)
-    - resumen     (texto)
-    - presupuesto  (texto)
-    - tipo financiacion  (texto)
-    - tipo fondos  (texto)
-    - fecha inicio  (texto)
-    - fecha fin  (texto)
+Maestro: proyecto (id, titulo, resumen, presupuesto, tipo_financiacion,
+                   tipo_fondos, fecha_inicio, fecha_fin)
+Detalle: producto  (id, nombre, categoria, fecha_entrega, tipo_producto FK)
+
+La lista de proyectos usa la API generica (GET /api/proyecto).
+El formulario de crear/editar usa Stored Procedures para garantizar
+que el proyecto y sus productos se guarden en una sola transaccion.
 
 Rutas:
-    GET  /proyecto              →  Listar registros y mostrar formulario si corresponde
-    POST /proyecto/crear        →  Crear un nuevo registro
-    POST /proyecto/actualizar   →  Actualizar un registro existente
-    POST /proyecto/eliminar     →  Eliminar un registro
+    GET  /proyecto              -> Listar proyectos (tabla) y mostrar formulario si aplica
+    POST /proyecto/crear        -> SP: sp_insertar_proyecto_y_productos
+    POST /proyecto/actualizar   -> SP: sp_actualizar_proyecto_y_productos
+    POST /proyecto/eliminar     -> SP: sp_borrar_proyecto_y_productos
 """
 
-# Importar las funciones necesarias de Flask (ver empresa.py para detalle de cada una)
+import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-
-# Servicio generico para las llamadas HTTP a la API REST
 from services.api_service import ApiService
-
-# Para manejo de fechas (llevarlas al template de manera que se visualicen)
-from datetime import datetime
 
 
 # ══════════════════════════════════════════════
 # CONFIGURACION DEL BLUEPRINT
 # ══════════════════════════════════════════════
 
-# Crear Blueprint con nombre 'proyecto' → se usa en url_for('proyecto.index')
 bp = Blueprint('proyecto', __name__)
-
-# Instancia del servicio CRUD para comunicarse con la API
 api = ApiService()
 
-# Nombre de la tabla en la API
 TABLA = 'proyecto'
-
-# Nombre del campo clave primaria
 CLAVE = 'id'
 
 
 # ══════════════════════════════════════════════
-# LISTAR REGISTROS (GET)
+# LISTAR / FORMULARIO (GET)
 # ══════════════════════════════════════════════
 
-# Responde a GET /proyecto
 @bp.route('/proyecto')
 def index():
-    """Muestra la tabla de proyectos con formulario opcional."""
-    # Leer parametros de la URL (query string)
-    limite = request.args.get('limite', type=int)       # Limite de registros (entero o None)
-    accion = request.args.get('accion', '')              # 'nuevo', 'editar' o '' (vacio)
-    valor_clave = request.args.get('clave', '')          # Valor de la PK para editar
+    """
+    Muestra la tabla de proyectos.
+    Si accion='nuevo' abre el formulario de creacion con una fila de producto vacia.
+    Si accion='editar' abre el formulario precargado con los productos del proyecto.
+    """
+    limite      = request.args.get('limite', type=int)
+    accion      = request.args.get('accion', '')
+    valor_clave = request.args.get('clave', '')
 
-    # Obtener registros de la API
+    # Lista de proyectos para la tabla (siempre se carga)
     registros = api.listar(TABLA, limite)
 
-    # Determinar estado del formulario
-    mostrar_formulario = accion in ('nuevo', 'editar')   # True si hay que mostrar formulario
-    editando = accion == 'editar'                        # True solo en modo edicion
+    # Formatear fechas para la tabla y para el formulario de edicion
+    for r in registros:
+        if r.get('fecha_inicio'):
+            r['fecha_inicio'] = r['fecha_inicio'][:10]
+        if r.get('fecha_fin'):
+            r['fecha_fin'] = r['fecha_fin'][:10]
 
-    # Buscar el registro a editar en la lista (si aplica)
-    registro = None
+    mostrar_formulario = accion in ('nuevo', 'editar')
+    editando           = accion == 'editar'
+
+    registro             = None   # Datos del proyecto a editar
+    productos_existentes = []     # Productos actuales del proyecto (solo en modo editar)
+    tipos_producto       = []     # Para el <select> de cada fila de producto
+
     if editando and valor_clave:
-        # Buscar el primer registro cuyo 'codigo' coincida con valor_clave
+        # Buscar el proyecto en la lista ya cargada
         registro = next(
             (r for r in registros if str(r.get(CLAVE)) == valor_clave),
-            None  # Retorna None si no encuentra coincidencia
+            None
         )
+        # Cargar los productos del proyecto via SP
+        if registro:
+            exito, datos = api.ejecutar_sp('sp_consultar_proyecto_y_productos', {
+                'p_id':       int(valor_clave),
+                'p_resultado': None
+            })
+            if exito and isinstance(datos, dict):
+                productos_existentes = datos.get('productos', [])
 
-    # Convertir fechas a formato legible (solo para mostrar en la tabla)
-    for r in registros:
-        if r.get("fecha_inicio"):
-            r["fecha_inicio"] = r["fecha_inicio"][:10]
+    if mostrar_formulario:
+        # Tipos de producto para el <select> de cada fila
+        tipos_producto = api.listar('tipo_producto', None) or []
 
-        if r.get("fecha_fin"):
-            r["fecha_fin"] = r["fecha_fin"][:10]
-
-    # Renderizar la pagina pasando las variables al template
     return render_template('pages/proyecto.html',
-        registros=registros,                  # Lista de proyectos para la tabla HTML
-        mostrar_formulario=mostrar_formulario, # Controla visibilidad del formulario
-        editando=editando,                     # Controla modo crear vs editar
-        registro=registro,                     # Datos del registro a editar (o None)
-        limite=limite                          # Mantener el valor de limite en el input
+        registros=registros,
+        mostrar_formulario=mostrar_formulario,
+        editando=editando,
+        registro=registro,
+        limite=limite,
+        tipos_producto=tipos_producto,
+        productos_existentes=productos_existentes
     )
 
 
 # ══════════════════════════════════════════════
-# CREAR REGISTRO (POST)
+# CREAR (POST)
+# SP: sp_insertar_proyecto_y_productos
 # ══════════════════════════════════════════════
 
-# Solo acepta peticiones POST (envio de formulario)
 @bp.route('/proyecto/crear', methods=['POST'])
 def crear():
-    """Crea un nuevo registro de proyecto."""
-    # Leer los 4 campos del formulario y armar el diccionario de datos.
-    # Todos son tipo texto, no necesitan conversion de tipo.
-    datos = {
-        'id':       request.form.get('id', ''),         # Clave primaria
-        'titulo':   request.form.get('titulo', ''),     # Titulo del proyecto
-        'resumen':   request.form.get('resumen', ''),
-        'presupuesto':   request.form.get('presupuesto', ''),
-        'tipo_financiacion':   request.form.get('tipo_financiacion', ''),
-        'tipo_fondos':   request.form.get('tipo_fondos', ''),
-        'fecha_inicio': request.form.get('fecha_inicio', ''),  # Fecha de inicio
-        'fecha_fin': request.form.get('fecha_fin', '')   # Fecha de finalizacion
-    }
+    """Crea un proyecto con sus productos en una sola transaccion via SP."""
+    # ── Maestro ──
+    id_proyecto       = request.form.get('id', '')
+    titulo            = request.form.get('titulo', '')
+    resumen           = request.form.get('resumen', '')
+    presupuesto       = request.form.get('presupuesto', 0, type=float)
+    tipo_financiacion = request.form.get('tipo_financiacion', '')
+    tipo_fondos       = request.form.get('tipo_fondos', '')
+    fecha_inicio      = request.form.get('fecha_inicio', '')
+    fecha_fin         = request.form.get('fecha_fin', '') or None
 
-    # Enviar POST a la API y obtener resultado
-    exito, mensaje = api.crear(TABLA, datos)
+    # ── Detalle: listas paralelas ──
+    nombres        = request.form.getlist('prod_nombre[]')
+    categorias     = request.form.getlist('prod_categoria[]')
+    fechas_entrega = request.form.getlist('prod_fecha_entrega[]')
+    tipos          = request.form.getlist('prod_tipo_producto[]')
 
-    # Guardar alerta (verde si exito, roja si error) y redirigir al listado
-    flash(mensaje, 'success' if exito else 'danger')
+    productos_lista = []
+    for nombre, cat, fecha, tipo in zip(nombres, categorias, fechas_entrega, tipos):
+        if nombre.strip() and cat.strip():
+            productos_lista.append({
+                'nombre':        nombre,
+                'categoria':     cat,
+                'fecha_entrega': fecha,
+                'tipo_producto': int(tipo) if tipo else None
+            })
+
+    exito, datos = api.ejecutar_sp('sp_insertar_proyecto_y_productos', {
+        'p_id':                int(id_proyecto) if id_proyecto else None,
+        'p_titulo':            titulo,
+        'p_resumen':           resumen,
+        'p_presupuesto':       presupuesto,
+        'p_tipo_financiacion': tipo_financiacion,
+        'p_tipo_fondos':       tipo_fondos,
+        'p_fecha_inicio':      fecha_inicio,
+        'p_fecha_fin':         fecha_fin,
+        'p_productos':         json.dumps(productos_lista),
+        'p_resultado':         None
+    })
+
+    if exito:
+        flash('Proyecto creado exitosamente.', 'success')
+    else:
+        flash(f'Error al crear proyecto: {datos}', 'danger')
+
     return redirect(url_for('proyecto.index'))
 
 
 # ══════════════════════════════════════════════
-# ACTUALIZAR REGISTRO (POST)
+# ACTUALIZAR (POST)
+# SP: sp_actualizar_proyecto_y_productos
+# El SP hace replace-all de productos: elimina los anteriores e inserta los nuevos.
 # ══════════════════════════════════════════════
 
 @bp.route('/proyecto/actualizar', methods=['POST'])
 def actualizar():
-    """Actualiza un registro existente de proyecto."""
-    # Leer la clave primaria del registro a actualizar
-    valor = request.form.get('id', '')
+    """Actualiza un proyecto y reemplaza sus productos en una sola transaccion via SP."""
+    # ── Maestro ──
+    id_proyecto       = request.form.get('id', 0, type=int)
+    titulo            = request.form.get('titulo', '')
+    resumen           = request.form.get('resumen', '')
+    presupuesto       = request.form.get('presupuesto', 0, type=float)
+    tipo_financiacion = request.form.get('tipo_financiacion', '')
+    tipo_fondos       = request.form.get('tipo_fondos', '')
+    fecha_inicio      = request.form.get('fecha_inicio', '')
+    fecha_fin         = request.form.get('fecha_fin', '') or None
 
-    # Campos editables (sin la clave primaria, que va en la URL)
-    datos = {
-        'titulo':   request.form.get('titulo', ''),     # Nuevo titulo
-        'resumen':   request.form.get('resumen', ''),
-        'presupuesto':   request.form.get('presupuesto', ''),
-        'tipo_financiacion':   request.form.get('tipo_financiacion', ''),
-        'tipo_fondos':   request.form.get('tipo_fondos', ''),
-        'fecha_inicio': request.form.get('fecha_inicio', ''),  # Nueva fecha de inicio
-        'fecha_fin': request.form.get('fecha_fin', '')   # Nueva fecha de finalizacion
-    }
+    # ── Detalle ──
+    nombres        = request.form.getlist('prod_nombre[]')
+    categorias     = request.form.getlist('prod_categoria[]')
+    fechas_entrega = request.form.getlist('prod_fecha_entrega[]')
+    tipos          = request.form.getlist('prod_tipo_producto[]')
+    ids_producto   = request.form.getlist('prod_id[]')    # IDs de productos ya existentes
 
-    # Enviar PUT a la API: /api/proyecto/id/{valor}
-    exito, mensaje = api.actualizar(TABLA, CLAVE, valor, datos)
+    productos_lista = []
+    for i, (nombre, cat, fecha, tipo) in enumerate(
+            zip(nombres, categorias, fechas_entrega, tipos)):
+        if nombre.strip() and cat.strip():
+            prod = {
+                'nombre':        nombre,
+                'categoria':     cat,
+                'fecha_entrega': fecha,
+                'tipo_producto': int(tipo) if tipo else None
+            }
+            # Si el producto ya existia, incluir su id para que el SP lo reconozca
+            if i < len(ids_producto) and ids_producto[i]:
+                prod['id'] = int(ids_producto[i])
+            productos_lista.append(prod)
 
-    # Guardar alerta y redirigir
-    flash(mensaje, 'success' if exito else 'danger')
+    exito, datos = api.ejecutar_sp('sp_actualizar_proyecto_y_productos', {
+        'p_id':                id_proyecto,
+        'p_titulo':            titulo,
+        'p_resumen':           resumen,
+        'p_presupuesto':       presupuesto,
+        'p_tipo_financiacion': tipo_financiacion,
+        'p_tipo_fondos':       tipo_fondos,
+        'p_fecha_inicio':      fecha_inicio,
+        'p_fecha_fin':         fecha_fin,
+        'p_productos':         json.dumps(productos_lista),
+        'p_resultado':         None
+    })
+
+    if exito:
+        flash('Proyecto actualizado exitosamente.', 'success')
+    else:
+        flash(f'Error al actualizar proyecto: {datos}', 'danger')
+
     return redirect(url_for('proyecto.index'))
 
 
 # ══════════════════════════════════════════════
-# ELIMINAR REGISTRO (POST)
+# ELIMINAR (POST)
+# SP: sp_borrar_proyecto_y_productos
+# Elimina el proyecto y todos sus productos en una sola transaccion.
 # ══════════════════════════════════════════════
 
 @bp.route('/proyecto/eliminar', methods=['POST'])
 def eliminar():
-    """Elimina un registro de proyecto."""
-    # Leer la clave primaria desde el campo oculto del formulario de eliminar
-    valor = request.form.get('id', '')
+    """Elimina un proyecto y todos sus productos via SP."""
+    id_proyecto = request.form.get('id', 0, type=int)
 
-    # Enviar DELETE a la API: /api/proyecto/id/{valor}
-    exito, mensaje = api.eliminar(TABLA, CLAVE, valor)
+    exito, datos = api.ejecutar_sp('sp_borrar_proyecto_y_productos', {
+        'p_id':       id_proyecto,
+        'p_resultado': None
+    })
 
-    # Guardar alerta y redirigir
-    flash(mensaje, 'success' if exito else 'danger')
+    if exito:
+        flash('Proyecto y sus productos eliminados exitosamente.', 'success')
+    else:
+        flash(f'Error al eliminar proyecto: {datos}', 'danger')
+
     return redirect(url_for('proyecto.index'))

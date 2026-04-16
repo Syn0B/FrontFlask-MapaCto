@@ -1,8 +1,18 @@
 {#
-    proyecto.html - Pagina CRUD para la tabla Proyecto.
+    proyecto.html - Pagina maestro-detalle: Proyecto y sus Productos Academicos.
 
-    Campos: id, titulo, resumen, presupuesto (decimal), tipo_financiacion, tipo_fondos, fecha_inicio, fecha_fin
-    Clave primaria: id
+    El formulario de crear/editar incluye:
+        1. Campos del proyecto (maestro)
+        2. Filas dinamicas de productos (detalle) — se agregan/quitan con JavaScript
+
+    Variables del contexto:
+        registros            — lista de proyectos para la tabla
+        mostrar_formulario   — bool: True cuando accion='nuevo' o 'editar'
+        editando             — bool: True solo en modo edicion
+        registro             — dict del proyecto a editar (o None)
+        limite               — valor actual del input de limite
+        tipos_producto       — lista de tipos para el <select> de cada fila
+        productos_existentes — lista de productos del proyecto (solo en modo editar)
 #}
 
 {% extends 'layout/base.html' %}
@@ -30,71 +40,211 @@
         <button class="btn btn-outline-secondary" type="submit">Cargar</button>
     </form>
 
-    {# ───────── FORMULARIO (CREAR / EDITAR) ───────── #}
+    {# ═══════════════════════════════════════════════════════════
+       FORMULARIO: CREAR / EDITAR PROYECTO + SUS PRODUCTOS
+    ═══════════════════════════════════════════════════════════ #}
     {% if mostrar_formulario %}
-        <div class="card mb-3">
-            <div class="card-header">
-                {{ "Editar Proyecto" if editando else "Nuevo Proyecto" }}
-            </div>
-            <div class="card-body">
-                <form method="POST"
-                      action="{{ url_for('proyecto.actualizar') if editando else url_for('proyecto.crear') }}">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Id</label>
-                            <input class="form-control" type="number" name="id"
-                                   value="{{ registro.id if registro else '' }}"
-                                   {{ 'readonly' if editando }} />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Titulo</label>
-                            <input class="form-control" name="titulo"
-                                   value="{{ registro.titulo if registro else '' }}" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Resumen</label>
-                            <input class="form-control" name="resumen"
-                                   value="{{ registro.resumen if registro else '' }}" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Presupuesto</label>
-                            <input class="form-control" type="number" step="0.01" name="presupuesto"
-                                   value="{{ registro.presupuesto if registro else 0 }}" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Tipo Financiacion</label>
-                            <input class="form-control" name="tipo_financiacion"
-                                   value="{{ registro.tipo_financiacion if registro else '' }}" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Tipo Fondos</label>
-                            <input class="form-control" name="tipo_fondos"
-                                   value="{{ registro.tipo_fondos if registro else '' }}" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Fecha Inicio</label>
-                            <input class="form-control" type="date" name="fecha_inicio"
-                                   value="{{ registro.fecha_inicio if registro else '' }}" />
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Fecha Fin</label>
-                            <input class="form-control" type="date" name="fecha_fin"
-                                   value="{{ registro.fecha_fin if registro else '' }}" />
-                        </div>
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">
+            {{ "Editar Proyecto #" ~ registro.id if editando else "Nuevo Proyecto" }}
+        </div>
+        <div class="card-body">
+            <form method="POST"
+                  action="{{ url_for('proyecto.actualizar') if editando else url_for('proyecto.crear') }}">
+
+                {# ── CAMPOS DEL PROYECTO ── #}
+                <h6 class="text-muted mb-3">Datos del Proyecto</h6>
+                <div class="row">
+
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label">ID</label>
+                        <input class="form-control" type="number" name="id"
+                               value="{{ registro.id if registro else '' }}"
+                               {{ 'readonly' if editando }}
+                               required />
                     </div>
+
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label">Titulo</label>
+                        <input class="form-control" type="text" name="titulo"
+                               maxlength="70" required
+                               value="{{ registro.titulo if registro else '' }}" />
+                    </div>
+
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label">Resumen</label>
+                        <input class="form-control" type="text" name="resumen"
+                               maxlength="256" required
+                               value="{{ registro.resumen if registro else '' }}" />
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Presupuesto</label>
+                        <input class="form-control" type="number" step="0.01"
+                               name="presupuesto" min="0" required
+                               value="{{ registro.presupuesto if registro else '0' }}" />
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo Financiacion</label>
+                        <input class="form-control" type="text" name="tipo_financiacion"
+                               maxlength="45" required
+                               value="{{ registro.tipo_financiacion if registro else '' }}" />
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo Fondos</label>
+                        <input class="form-control" type="text" name="tipo_fondos"
+                               maxlength="45" required
+                               value="{{ registro.tipo_fondos if registro else '' }}" />
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Fecha Inicio</label>
+                        <input class="form-control" type="date" name="fecha_inicio"
+                               required
+                               value="{{ registro.fecha_inicio if registro else '' }}" />
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Fecha Fin <small class="text-muted">(opcional)</small></label>
+                        <input class="form-control" type="date" name="fecha_fin"
+                               value="{{ registro.fecha_fin if registro else '' }}" />
+                    </div>
+
+                </div>
+
+                <hr />
+
+                {# ── PRODUCTOS DEL PROYECTO (DETALLE) ── #}
+                <h6 class="text-muted mb-3">Productos Academicos</h6>
+
+                <div id="productos-container">
+
+                    {% if editando and productos_existentes %}
+                        {# Modo editar: precargar una fila por cada producto existente #}
+                        {% for prod in productos_existentes %}
+                        <div class="row mb-2 align-items-end producto-fila">
+
+                            {# ID del producto existente — el SP lo usa para reemplazarlo #}
+                            <input type="hidden" name="prod_id[]"
+                                   value="{{ prod.id }}" />
+
+                            <div class="col-md-3">
+                                {% if loop.first %}<label class="form-label">Nombre</label>{% endif %}
+                                <input class="form-control" type="text" name="prod_nombre[]"
+                                       maxlength="45" required
+                                       value="{{ prod.nombre }}" />
+                            </div>
+
+                            <div class="col-md-2">
+                                {% if loop.first %}<label class="form-label">Categoria</label>{% endif %}
+                                <input class="form-control" type="text" name="prod_categoria[]"
+                                       maxlength="45" required
+                                       value="{{ prod.categoria }}" />
+                            </div>
+
+                            <div class="col-md-2">
+                                {% if loop.first %}<label class="form-label">Fecha Entrega</label>{% endif %}
+                                <input class="form-control" type="date"
+                                       name="prod_fecha_entrega[]" required
+                                       value="{{ prod.fecha_entrega[:10] if prod.fecha_entrega else '' }}" />
+                            </div>
+
+                            <div class="col-md-3">
+                                {% if loop.first %}<label class="form-label">Tipo Producto</label>{% endif %}
+                                <select class="form-select" name="prod_tipo_producto[]" required>
+                                    <option value="">-- Tipo --</option>
+                                    {% for tp in tipos_producto %}
+                                        <option value="{{ tp.id }}"
+                                            {{ 'selected' if tp.id == prod.tipo_producto }}>
+                                            {{ tp.nombre }} ({{ tp.categoria }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                {% if loop.first %}<label class="form-label d-block">&nbsp;</label>{% endif %}
+                                <button type="button" class="btn btn-outline-danger btn-sm w-100"
+                                        onclick="this.closest('.producto-fila').remove()">
+                                    Quitar
+                                </button>
+                            </div>
+
+                        </div>
+                        {% endfor %}
+
+                    {% else %}
+                        {# Modo crear o proyecto sin productos: una fila vacia inicial #}
+                        <div class="row mb-2 align-items-end producto-fila">
+
+                            <input type="hidden" name="prod_id[]" value="" />
+
+                            <div class="col-md-3">
+                                <label class="form-label">Nombre</label>
+                                <input class="form-control" type="text" name="prod_nombre[]"
+                                       maxlength="45" placeholder="Nombre del producto" />
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label">Categoria</label>
+                                <input class="form-control" type="text" name="prod_categoria[]"
+                                       maxlength="45" placeholder="Categoria" />
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label">Fecha Entrega</label>
+                                <input class="form-control" type="date"
+                                       name="prod_fecha_entrega[]" />
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Tipo Producto</label>
+                                <select class="form-select" name="prod_tipo_producto[]">
+                                    <option value="">-- Tipo --</option>
+                                    {% for tp in tipos_producto %}
+                                        <option value="{{ tp.id }}">
+                                            {{ tp.nombre }} ({{ tp.categoria }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label d-block">&nbsp;</label>
+                                <button type="button" class="btn btn-outline-danger btn-sm w-100"
+                                        onclick="this.closest('.producto-fila').remove()">
+                                    Quitar
+                                </button>
+                            </div>
+
+                        </div>
+                    {% endif %}
+
+                </div>{# /productos-container #}
+
+                <button type="button" class="btn btn-outline-primary btn-sm mb-4"
+                        onclick="agregarProducto()">
+                    + Agregar Producto
+                </button>
+
+                <div>
                     <button class="btn btn-success me-2" type="submit">Guardar</button>
                     <a href="{{ url_for('proyecto.index') }}" class="btn btn-secondary">Cancelar</a>
-                </form>
-            </div>
+                </div>
+
+            </form>
         </div>
+    </div>
     {% endif %}
 
-    {# ───────── TABLA DE REGISTROS ───────── #}
+    {# ───────── TABLA DE PROYECTOS ───────── #}
     {% if registros %}
         <table class="table table-striped table-hover">
             <thead class="table-dark">
                 <tr>
-                    <th>Id</th>
+                    <th>ID</th>
                     <th>Titulo</th>
                     <th>Resumen</th>
                     <th>Presupuesto</th>
@@ -115,14 +265,14 @@
                     <td>{{ reg.tipo_financiacion }}</td>
                     <td>{{ reg.tipo_fondos }}</td>
                     <td>{{ reg.fecha_inicio }}</td>
-                    <td>{{ reg.fecha_fin }}</td>
+                    <td>{{ reg.fecha_fin or '—' }}</td>
                     <td>
                         <a href="{{ url_for('proyecto.index', accion='editar', clave=reg.id) }}"
                            class="btn btn-warning btn-sm me-1">Editar</a>
 
                         <form method="POST" action="{{ url_for('proyecto.eliminar') }}"
                               style="display:inline"
-                              onsubmit="return confirm('Eliminar este registro?')">
+                              onsubmit="return confirm('Eliminar proyecto #{{ reg.id }} y todos sus productos?')">
                             <input type="hidden" name="id" value="{{ reg.id }}" />
                             <button class="btn btn-danger btn-sm" type="submit">Eliminar</button>
                         </form>
@@ -136,4 +286,76 @@
     {% endif %}
 
 </div>
+
+{# ══════════════════════════════════════════════════════════
+   JAVASCRIPT — solo se incluye cuando el formulario esta visible
+   para no cargar el script en la vista de solo listado.
+══════════════════════════════════════════════════════════ #}
+{% if mostrar_formulario %}
+<script>
+    // tipos_producto inyectado desde Python para usarlo al crear filas nuevas
+    const tiposProducto = {{ tipos_producto | tojson }};
+
+    function agregarProducto() {
+        const container = document.getElementById('productos-container');
+        const primeraFila = container.querySelector('.producto-fila');
+
+        if (!primeraFila) {
+            // No quedan filas: construir desde los datos JSON
+            let opcionesHtml = '<option value="">-- Tipo --</option>';
+            tiposProducto.forEach(tp => {
+                opcionesHtml += `<option value="${tp.id}">${tp.nombre} (${tp.categoria})</option>`;
+            });
+            container.innerHTML += `
+                <div class="row mb-2 align-items-end producto-fila">
+                    <input type="hidden" name="prod_id[]" value="" />
+                    <div class="col-md-3">
+                        <input class="form-control" type="text" name="prod_nombre[]"
+                               maxlength="45" placeholder="Nombre del producto" />
+                    </div>
+                    <div class="col-md-2">
+                        <input class="form-control" type="text" name="prod_categoria[]"
+                               maxlength="45" placeholder="Categoria" />
+                    </div>
+                    <div class="col-md-2">
+                        <input class="form-control" type="date" name="prod_fecha_entrega[]" />
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="prod_tipo_producto[]">
+                            ${opcionesHtml}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-outline-danger btn-sm w-100"
+                                onclick="this.closest('.producto-fila').remove()">
+                            Quitar
+                        </button>
+                    </div>
+                </div>`;
+            return;
+        }
+
+        // Clonar la primera fila y limpiar sus valores
+        const nuevaFila = primeraFila.cloneNode(true);
+
+        // Limpiar el campo oculto del id (nuevo producto, sin id aun)
+        const hiddenId = nuevaFila.querySelector('input[name="prod_id[]"]');
+        if (hiddenId) hiddenId.value = '';
+
+        // Limpiar inputs de texto y fecha
+        nuevaFila.querySelectorAll('input[type="text"], input[type="date"]')
+                 .forEach(inp => inp.value = '');
+
+        // Resetear el select al primer elemento
+        const sel = nuevaFila.querySelector('select');
+        if (sel) sel.selectedIndex = 0;
+
+        // Eliminar las etiquetas <label> de la fila clonada (solo la primera fila las tiene)
+        nuevaFila.querySelectorAll('label').forEach(lbl => lbl.remove());
+
+        container.appendChild(nuevaFila);
+    }
+</script>
+{% endif %}
+
 {% endblock %}
