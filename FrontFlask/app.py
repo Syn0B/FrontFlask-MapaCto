@@ -42,6 +42,7 @@ from routes.ods_proyecto import bp as ods_proyecto_bp
 from routes.proyecto_linea import bp as proyecto_linea_bp
 """
 from routes.ac_proyecto import bp as ac_proyecto_bp
+"""
 from routes.docente_producto import bp as docente_producto_bp
 from routes.aliado_proyecto import bp as aliado_proyecto_bp
 """
