@@ -1,0 +1,29 @@
+{#
+    home.html - Pagina de inicio.
+
+    Muestra informacion general del proyecto y las tablas disponibles.
+#}
+
+{% extends 'layout/base.html' %}
+
+{% block title %}CRUD Gestion conocimiento{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <h1>CRUD - Base de Datos Gestión del conocimiento</h1>
+
+    <p class="lead">
+        Frontend Flask que consume la API generica
+        <strong>ApiGenericaCsharp</strong> para gestionar las tablas
+        de <code>BDMapaCto</code>.
+    </p>
+
+    <div class="alert alert-info">
+        <strong>Tablas disponibles:</strong> termino_clave, tipo_producto, proyecto.
+        <br />
+        Use el menu lateral para navegar a cada tabla.
+    </div>
+
+</div>
+{% endblock %}

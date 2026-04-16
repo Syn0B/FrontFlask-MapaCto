@@ -1,0 +1,109 @@
+{#
+    nav_menu.html - Menu de navegacion lateral.
+
+    Se incluye dentro del sidebar en base.html con {% include %}.
+    Muestra los links a Home y a las 6 tablas disponibles.
+    El link activo se resalta comparando la ruta actual (request.path).
+#}
+
+{# ───────── HEADER VISUAL MODERNO DEL SIDEBAR ───────── #}
+{# Se agrega un header mas llamativo con degradado y branding visual #}
+<div class="sidebar-header">
+    <div class="brand-container">
+        <div class="brand-logo">GC</div>
+        <div class="brand-text">
+            <span class="brand-title">CRUD - Gestión del conocimiento</span>
+            <br>
+            <span class="brand-subtitle">Módulo Mapa de conocimiento</span>
+        </div>
+    </div>
+</div>
+
+
+
+{# ───────── LINKS DE NAVEGACION ───────── #}
+<div class="nav-scrollable">
+    <nav class="nav flex-column">
+
+        {# Link a la pagina de inicio #}
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path == '/' }}" href="/">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-text">Home</span>
+            </a>
+        </div>
+
+        {# Links a las 3 tablas sin clave foranea #}
+
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/termino_clave') }}" href="/termino_clave">
+                <span class="nav-icon">🔑</span>
+                <span class="nav-text">Termino clave</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/tipo_producto') }}" href="/tipo_producto">
+                <span class="nav-icon">📦</span>
+                <span class="nav-text">Tipo producto</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/proyecto') }}" href="/proyecto">
+                <span class="nav-icon">📂</span>
+                <span class="nav-text">Proyecto</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/palabras_clave') }}" href="/palabras_clave">
+                <span class="nav-icon">🔧</span>
+                <span class="nav-text">Palabras clave</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/aa_proyecto') }}" href="/aa_proyecto">
+                <span class="nav-icon">🗺️</span>
+                <span class="nav-text">AA por Proyecto</span>
+            </a>
+        </div>
+      
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/ods_proyecto') }}" href="/ods_proyecto">
+                <span class="nav-icon">🌱</span>
+                <span class="nav-text">ODS por Proyecto</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/proyecto_linea') }}" href="/proyecto_linea">
+                <span class="nav-icon">🔬</span>
+                <span class="nav-text">Linea por Proyecto</span>
+            </a>
+        </div>
+      
+      <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/ac_proyecto') }}" href="/ac_proyecto">
+                <span class="nav-icon">🧠</span>
+                <span class="nav-text">AC por Proyecto</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/docente_producto') }}" href="/docente_producto">
+                <span class="nav-icon">👨‍🏫</span>
+                <span class="nav-text">Docente por Producto</span>
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/aliado_proyecto') }}" href="/aliado_proyecto">
+                <span class="nav-icon">🤝</span>
+                <span class="nav-text">Aliado por Proyecto</span>
+            </a>
+        </div>
+
+    </nav>
+</div>
