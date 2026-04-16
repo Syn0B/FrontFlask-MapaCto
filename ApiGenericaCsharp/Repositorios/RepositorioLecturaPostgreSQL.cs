@@ -603,6 +603,214 @@ namespace ApiGenericaCsharp.Repositorios
 
             return diagnostico;
         }
+
+
+
+        /// <summary>
+        /// Elimina un registro usando una clave primaria compuesta (N columnas).
+        ///
+        /// Construye dinámicamente: DELETE FROM "esquema"."tabla"
+        /// WHERE "col1" = @clave_0 AND "col2" = @clave_1 AND ...
+        ///
+        /// Cada valor de clave se detecta por tipo de columna y se convierte
+        /// al tipo nativo apropiado (int, date, uuid, etc.) antes de parametrizarse.
+        /// Los nombres de columna NUNCA se concatenan sin escapar: van entre comillas dobles
+        /// y los valores van como parámetros, evitando inyección SQL.
+        /// </summary>
+        public async Task<int> EliminarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves)
+        {
+            if (string.IsNullOrWhiteSpace(nombreTabla))
+                throw new ArgumentException("El nombre de la tabla no puede estar vacío.", nameof(nombreTabla));
+            if (claves == null || claves.Count == 0)
+                throw new ArgumentException("Debe proporcionar al menos una columna clave.", nameof(claves));
+
+            string esquemaFinal = string.IsNullOrWhiteSpace(esquema) ? "public" : esquema.Trim();
+
+            try
+            {
+                // FASE 1: Detectar el tipo de cada columna clave y convertir su valor.
+                // Se hace ANTES de abrir la conexión principal para fallar rápido si algo no cuadra.
+                var clavesConTipo = new List<(string nombre, object valor, NpgsqlDbType? tipo)>();
+                for (int i = 0; i < claves.Count; i++)
+                {
+                    var (nombreCol, valorStr) = claves[i];
+                    var tipo = await DetectarTipoColumnaAsync(nombreTabla, esquemaFinal, nombreCol);
+                    object valorConvertido = ConvertirValor(valorStr, tipo);
+                    clavesConTipo.Add((nombreCol, valorConvertido, tipo));
+                }
+
+                // FASE 2: Construir el WHERE dinámico con parámetros indexados.
+                // Cada columna recibe un parámetro único: @clave_0, @clave_1, @clave_2, ...
+                // Esto evita colisiones si dos columnas tuvieran nombres parecidos.
+                var clausulasWhere = clavesConTipo
+                    .Select((c, i) => $"\"{c.nombre}\" = @clave_{i}");
+                string where = string.Join(" AND ", clausulasWhere);
+
+                string sql = $"DELETE FROM \"{esquemaFinal}\".\"{nombreTabla}\" WHERE {where}";
+
+                // FASE 3: Ejecutar contra la base de datos
+                string cadena = _proveedorConexion.ObtenerCadenaConexion();
+                await using var conexion = new NpgsqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new NpgsqlCommand(sql, conexion);
+
+                // FASE 4: Asociar cada valor con su parámetro tipado
+                for (int i = 0; i < clavesConTipo.Count; i++)
+                {
+                    var (_, valor, tipo) = clavesConTipo[i];
+                    string nombreParam = $"clave_{i}";
+
+                    if (tipo.HasValue)
+                    {
+                        var parametro = new NpgsqlParameter(nombreParam, tipo.Value) { Value = valor };
+                        comando.Parameters.Add(parametro);
+                    }
+                    else
+                    {
+                        // Si no se pudo detectar el tipo, dejar que Npgsql infiera (fallback string)
+                        comando.Parameters.AddWithValue(nombreParam, valor);
+                    }
+                }
+
+                return await comando.ExecuteNonQueryAsync();
+            }
+            catch (NpgsqlException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Error PostgreSQL al eliminar de '{esquemaFinal}.{nombreTabla}' con PK compuesta: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Actualiza un registro usando una clave primaria compuesta (N columnas).
+        ///
+        /// Construye dinámicamente: UPDATE "esquema"."tabla"
+        /// SET "colA" = @colA, "colB" = @colB, ...
+        /// WHERE "pk1" = @clave_0 AND "pk2" = @clave_1 AND ...
+        ///
+        /// Reutiliza la misma estrategia de detección de tipos que ActualizarAsync,
+        /// tanto para los campos del SET como para las columnas del WHERE.
+        /// </summary>
+        public async Task<int> ActualizarCompuestaAsync(
+            string nombreTabla,
+            string? esquema,
+            List<(string nombre, string valor)> claves,
+            Dictionary<string, object?> datos,
+            string? camposEncriptar = null)
+        {
+            if (string.IsNullOrWhiteSpace(nombreTabla))
+                throw new ArgumentException("El nombre de la tabla no puede estar vacío.", nameof(nombreTabla));
+            if (claves == null || claves.Count == 0)
+                throw new ArgumentException("Debe proporcionar al menos una columna clave.", nameof(claves));
+            if (datos == null || !datos.Any())
+                throw new ArgumentException("Los datos no pueden estar vacíos.", nameof(datos));
+
+            string esquemaFinal = string.IsNullOrWhiteSpace(esquema) ? "public" : esquema.Trim();
+
+            // Aplicar encriptación a los campos solicitados (mismo patrón que ActualizarAsync)
+            var datosFinales = new Dictionary<string, object?>(datos);
+
+            if (!string.IsNullOrWhiteSpace(camposEncriptar))
+            {
+                var camposAEncriptar = camposEncriptar.Split(',')
+                    .Select(c => c.Trim())
+                    .Where(c => !string.IsNullOrEmpty(c))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var campo in camposAEncriptar)
+                {
+                    if (datosFinales.ContainsKey(campo) && datosFinales[campo] != null)
+                    {
+                        string valorOriginal = datosFinales[campo]?.ToString() ?? "";
+                        datosFinales[campo] = EncriptacionBCrypt.Encriptar(valorOriginal);
+                    }
+                }
+            }
+
+            try
+            {
+                // FASE 1: Detectar tipos de las columnas clave y convertir sus valores
+                var clavesConTipo = new List<(string nombre, object valor, NpgsqlDbType? tipo)>();
+                foreach (var (nombreCol, valorStr) in claves)
+                {
+                    var tipo = await DetectarTipoColumnaAsync(nombreTabla, esquemaFinal, nombreCol);
+                    object valorConvertido = ConvertirValor(valorStr, tipo);
+                    clavesConTipo.Add((nombreCol, valorConvertido, tipo));
+                }
+
+                // FASE 2: Construir cláusula SET dinámica
+                // Cada campo del diccionario va como "col" = @col
+                var clausulaSet = string.Join(", ", datosFinales.Keys.Select(k => $"\"{k}\" = @{k}"));
+
+                // FASE 3: Construir cláusula WHERE dinámica con parámetros indexados
+                // Usamos @clave_0, @clave_1, ... para que NUNCA choquen con los nombres
+                // de los campos del SET (importante si una columna del SET se llamara
+                // igual que una columna de la PK, aunque sea raro).
+                var clausulasWhere = clavesConTipo
+                    .Select((c, i) => $"\"{c.nombre}\" = @clave_{i}");
+                string where = string.Join(" AND ", clausulasWhere);
+
+                string sql = $"UPDATE \"{esquemaFinal}\".\"{nombreTabla}\" SET {clausulaSet} WHERE {where}";
+
+                // FASE 4: Ejecutar contra la base de datos
+                string cadena = _proveedorConexion.ObtenerCadenaConexion();
+                await using var conexion = new NpgsqlConnection(cadena);
+                await conexion.OpenAsync();
+
+                await using var comando = new NpgsqlCommand(sql, conexion);
+
+                // FASE 5: Parámetros del SET (mismo patrón que ActualizarAsync)
+                foreach (var kvp in datosFinales)
+                {
+                    var tipoColumnaSet = await DetectarTipoColumnaAsync(nombreTabla, esquemaFinal, kvp.Key);
+
+                    if (kvp.Value == null)
+                    {
+                        comando.Parameters.AddWithValue(kvp.Key, DBNull.Value);
+                    }
+                    else if (tipoColumnaSet.HasValue && kvp.Value is string valorString)
+                    {
+                        object valorConvertido = ConvertirValor(valorString, tipoColumnaSet);
+                        var parametro = new NpgsqlParameter(kvp.Key, tipoColumnaSet.Value) { Value = valorConvertido };
+                        comando.Parameters.Add(parametro);
+                    }
+                    else
+                    {
+                        comando.Parameters.AddWithValue(kvp.Key, kvp.Value);
+                    }
+                }
+
+                // FASE 6: Parámetros del WHERE (PK compuesta)
+                for (int i = 0; i < clavesConTipo.Count; i++)
+                {
+                    var (_, valor, tipo) = clavesConTipo[i];
+                    string nombreParam = $"clave_{i}";
+
+                    if (tipo.HasValue)
+                    {
+                        var parametro = new NpgsqlParameter(nombreParam, tipo.Value) { Value = valor };
+                        comando.Parameters.Add(parametro);
+                    }
+                    else
+                    {
+                        comando.Parameters.AddWithValue(nombreParam, valor);
+                    }
+                }
+
+                return await comando.ExecuteNonQueryAsync();
+            }
+            catch (NpgsqlException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Error PostgreSQL al actualizar '{esquemaFinal}.{nombreTabla}' con PK compuesta: {ex.Message}", ex);
+            }
+        }
+
+
     }
 }
 
