@@ -178,7 +178,7 @@ namespace ApiGenericaCsharp.Controllers
         /// Todas las respuestas incluyen información estructurada para facilitar el uso de la API.
         /// </returns>
         //[AllowAnonymous]                                  // Permite acceso sin autenticación (apropiado para desarrollo)
-        [Authorize]
+        //[Authorize]
         [HttpGet]                                        // Responde exclusivamente a peticiones HTTP GET
         public async Task<IActionResult> ListarAsync(
             string tabla,                                 // Del path de la URL: /api/{tabla}
@@ -957,6 +957,350 @@ namespace ApiGenericaCsharp.Controllers
             }
         }
 
+        // ════════════════════════════════════════════════════════════════════════════════
+        // ENDPOINTS PARA TABLAS CON CLAVE PRIMARIA COMPUESTA (PK DE 2 O MÁS COLUMNAS)
+        // ════════════════════════════════════════════════════════════════════════════════
+        //
+        // Los siguientes endpoints usan rutas catch-all ({**rutaClaves}) para soportar
+        // PKs compuestas de cualquier aridad sin tener que escribir un endpoint por cada
+        // cantidad de columnas clave.
+        //
+        // Formato de la URL: /api/{tabla}/col1/val1/col2/val2/...
+        //
+        // Ejemplos reales del módulo Mapa de Conocimiento:
+        //   DELETE /api/palabras_clave/proyecto/1/termino_clave/inteligencia
+        //   DELETE /api/ac_proyecto/area_conocimiento/5/proyecto/12
+        //   PUT    /api/desarrolla/docente/3/proyecto/7
+        //
+        // IMPORTANTE: ASP.NET Core prefiere rutas más específicas sobre catch-all,
+        // así que las llamadas con PK simple (col/val) seguirán entrando a los endpoints
+        // EliminarAsync y ActualizarAsync existentes, sin cambio de comportamiento.
+        // ════════════════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Elimina un registro identificado por una clave primaria COMPUESTA (2 o más columnas).
+        /// 
+        /// Ruta: DELETE /api/{tabla}/{col1}/{val1}/{col2}/{val2}[/...]
+        /// 
+        /// Ejemplos:
+        ///   DELETE /api/palabras_clave/proyecto/1/termino_clave/inteligencia
+        ///   DELETE /api/ac_proyecto/area_conocimiento/5/proyecto/12
+        /// 
+        /// Para PK simple sigue usándose el endpoint EliminarAsync existente
+        /// (ASP.NET Core prefiere rutas más específicas sobre catch-all).
+        /// </summary>
+        [AllowAnonymous]
+        [HttpDelete("{**rutaClaves}")]
+        public async Task<IActionResult> EliminarCompuestaAsync(
+            string tabla,                                          // Del path: /api/{tabla}
+            string rutaClaves,                                     // Catch-all: col1/val1/col2/val2/...
+            [FromQuery] string? esquema = null                     // Query param: ?esquema=valor
+        )
+        {
+            try
+            {
+                // Parsear los pares antes de loggear, para fallar rápido si el formato es inválido
+                var pares = ParsearClavesCompuestas(rutaClaves);
+
+                // Salvaguarda: si solo llega un par, este endpoint no debería atender la petición.
+                // En teoría el routing prefiere el endpoint de PK simple, pero por consistencia
+                // rechazamos explícitamente el caso de un único par.
+                if (pares.Count < 2)
+                {
+                    return BadRequest(new
+                    {
+                        estado = 400,
+                        mensaje = "Use el endpoint de PK simple para una sola columna clave.",
+                        tabla = tabla
+                    });
+                }
+
+                // Construir representación legible para logs y mensajes de respuesta
+                string filtroLegible = string.Join(" AND ", pares.Select(p => $"{p.nombre}={p.valor}"));
+
+                // LOGGING DE AUDITORÍA
+                _logger.LogInformation(
+                    "INICIO eliminación PK compuesta - Tabla: {Tabla}, Filtro: {Filtro}, Esquema: {Esquema}",
+                    tabla, filtroLegible, esquema ?? "por defecto"
+                );
+
+                // DELEGACIÓN AL SERVICIO (aplicando SRP y DIP)
+                // Requiere una sobrecarga nueva en IServicioCrud que acepte la lista de pares
+                int filasEliminadas = await _servicioCrud.EliminarCompuestaAsync(
+                    tabla, esquema, pares
+                );
+
+                // EVALUAR RESULTADO SEGÚN FILAS ELIMINADAS
+                if (filasEliminadas > 0)
+                {
+                    _logger.LogInformation(
+                        "ÉXITO eliminación PK compuesta - {Filas} filas eliminadas de {Tabla} WHERE {Filtro}",
+                        filasEliminadas, tabla, filtroLegible
+                    );
+
+                    return Ok(new
+                    {
+                        estado = 200,
+                        mensaje = "Registro eliminado exitosamente.",
+                        tabla = tabla,
+                        esquema = esquema ?? "por defecto",
+                        filtro = filtroLegible,
+                        filasEliminadas = filasEliminadas
+                    });
+                }
+                else
+                {
+                    // Si no se eliminaron filas, significa que no se encontró el registro
+                    return NotFound(new
+                    {
+                        estado = 404,
+                        mensaje = "No se encontró el registro a eliminar.",
+                        detalle = $"No existe un registro con {filtroLegible} en la tabla {tabla}",
+                        tabla = tabla,
+                        filtro = filtroLegible
+                    });
+                }
+            }
+            catch (UnauthorizedAccessException excepcionAcceso)
+            {
+                return StatusCode(403, new
+                {
+                    estado = 403,
+                    mensaje = "Acceso denegado.",
+                    detalle = excepcionAcceso.Message,
+                    tabla = tabla
+                });
+            }
+            catch (ArgumentException excepcionArgumento)
+            {
+                return BadRequest(new
+                {
+                    estado = 400,
+                    mensaje = "Parámetros inválidos.",
+                    detalle = excepcionArgumento.Message,
+                    tabla = tabla
+                });
+            }
+            catch (InvalidOperationException excepcionOperacion)
+            {
+                // Manejo específico para restricciones de clave foránea (mismo criterio que EliminarAsync)
+                if (excepcionOperacion.InnerException is SqlException sqlEx && sqlEx.Number == 547)
+                {
+                    return Conflict(new
+                    {
+                        estado = 409,
+                        mensaje = "No se puede eliminar el registro.",
+                        detalle = "El registro está siendo referenciado por otros datos (restricción de clave foránea).",
+                        tabla = tabla
+                    });
+                }
+
+                return StatusCode(500, new
+                {
+                    estado = 500,
+                    mensaje = "Error en la operación de eliminación.",
+                    detalle = excepcionOperacion.Message,
+                    tabla = tabla
+                });
+            }
+            catch (Exception excepcionGeneral)
+            {
+                _logger.LogError(excepcionGeneral,
+                    "ERROR CRÍTICO - Falla en eliminación PK compuesta - Tabla: {Tabla}, Ruta: {Ruta}",
+                    tabla, rutaClaves
+                );
+
+                var detalleError = new System.Text.StringBuilder();
+                detalleError.AppendLine($"Tipo: {excepcionGeneral.GetType().Name}");
+                detalleError.AppendLine($"Mensaje: {excepcionGeneral.Message}");
+                if (excepcionGeneral.InnerException != null)
+                    detalleError.AppendLine($"Error interno: {excepcionGeneral.InnerException.Message}");
+
+                return StatusCode(500, new
+                {
+                    estado = 500,
+                    mensaje = "Error interno del servidor al eliminar registro.",
+                    tabla = tabla,
+                    tipoError = excepcionGeneral.GetType().Name,
+                    detalle = excepcionGeneral.Message,
+                    detalleCompleto = detalleError.ToString(),
+                    errorInterno = excepcionGeneral.InnerException?.Message,
+                    timestamp = DateTime.UtcNow,
+                    sugerencia = "Revise los logs para más detalles."
+                });
+            }
+        }
+
+        /// <summary>
+        /// Actualiza un registro identificado por una clave primaria COMPUESTA (2 o más columnas).
+        /// 
+        /// Útil para tablas intermedias que tienen columnas adicionales además de la PK
+        /// (por ejemplo, una intermedia con campos de fecha, cantidad, observaciones, etc.).
+        /// 
+        /// Ruta: PUT /api/{tabla}/{col1}/{val1}/{col2}/{val2}[/...]
+        /// 
+        /// Ejemplos:
+        ///   PUT /api/desarrolla/docente/3/proyecto/7  (con body JSON)
+        ///   PUT /api/participa_grupo/docente/5/grupo_investigacion/2?camposEncriptar=token
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPut("{**rutaClaves}")]
+        public async Task<IActionResult> ActualizarCompuestaAsync(
+            string tabla,                                           // Del path: /api/{tabla}
+            string rutaClaves,                                      // Catch-all: col1/val1/col2/val2/...
+            [FromBody] Dictionary<string, object?> datosEntidad,   // Del body: JSON con nuevos datos
+            [FromQuery] string? esquema = null,                    // Query param: ?esquema=valor
+            [FromQuery] string? camposEncriptar = null             // Query param: ?camposEncriptar=password,pin
+        )
+        {
+            try
+            {
+                // Parsear los pares antes de loggear, para fallar rápido si el formato es inválido
+                var pares = ParsearClavesCompuestas(rutaClaves);
+
+                // Salvaguarda: rechazar caso de un único par (debe usarse el endpoint de PK simple)
+                if (pares.Count < 2)
+                {
+                    return BadRequest(new
+                    {
+                        estado = 400,
+                        mensaje = "Use el endpoint de PK simple para una sola columna clave.",
+                        tabla = tabla
+                    });
+                }
+
+                // Construir representación legible para logs y mensajes de respuesta
+                string filtroLegible = string.Join(" AND ", pares.Select(p => $"{p.nombre}={p.valor}"));
+
+                // LOGGING DE AUDITORÍA
+                _logger.LogInformation(
+                    "INICIO actualización PK compuesta - Tabla: {Tabla}, Filtro: {Filtro}, Esquema: {Esquema}, Campos a encriptar: {CamposEncriptar}",
+                    tabla, filtroLegible, esquema ?? "por defecto", camposEncriptar ?? "ninguno"
+                );
+
+                // VALIDACIÓN TEMPRANA EN CONTROLADOR
+                if (datosEntidad == null || !datosEntidad.Any())
+                {
+                    return BadRequest(new
+                    {
+                        estado = 400,
+                        mensaje = "Los datos de actualización no pueden estar vacíos.",
+                        tabla = tabla,
+                        filtro = filtroLegible
+                    });
+                }
+
+                // CONVERSIÓN DE JsonElement A TIPOS NATIVOS
+                // Reutilizar la misma lógica que en CrearAsync y ActualizarAsync
+                var datosConvertidos = new Dictionary<string, object?>();
+                foreach (var kvp in datosEntidad)
+                {
+                    if (kvp.Value is JsonElement elemento)
+                    {
+                        datosConvertidos[kvp.Key] = ConvertirJsonElement(elemento);
+                    }
+                    else
+                    {
+                        datosConvertidos[kvp.Key] = kvp.Value;
+                    }
+                }
+
+                // DELEGACIÓN AL SERVICIO (aplicando SRP y DIP)
+                // Requiere una sobrecarga nueva en IServicioCrud que acepte la lista de pares
+                int filasAfectadas = await _servicioCrud.ActualizarCompuestaAsync(
+                    tabla, esquema, pares, datosConvertidos, camposEncriptar
+                );
+
+                // EVALUAR RESULTADO SEGÚN FILAS AFECTADAS
+                if (filasAfectadas > 0)
+                {
+                    _logger.LogInformation(
+                        "ÉXITO actualización PK compuesta - {Filas} filas actualizadas en {Tabla} WHERE {Filtro}",
+                        filasAfectadas, tabla, filtroLegible
+                    );
+
+                    return Ok(new
+                    {
+                        estado = 200,
+                        mensaje = "Registro actualizado exitosamente.",
+                        tabla = tabla,
+                        esquema = esquema ?? "por defecto",
+                        filtro = filtroLegible,
+                        filasAfectadas = filasAfectadas,
+                        camposEncriptados = camposEncriptar ?? "ninguno"
+                    });
+                }
+                else
+                {
+                    // Si no se afectaron filas, significa que no se encontró el registro
+                    return NotFound(new
+                    {
+                        estado = 404,
+                        mensaje = "No se encontró el registro a actualizar.",
+                        detalle = $"No existe un registro con {filtroLegible} en la tabla {tabla}",
+                        tabla = tabla,
+                        filtro = filtroLegible
+                    });
+                }
+            }
+            catch (UnauthorizedAccessException excepcionAcceso)
+            {
+                return StatusCode(403, new
+                {
+                    estado = 403,
+                    mensaje = "Acceso denegado.",
+                    detalle = excepcionAcceso.Message,
+                    tabla = tabla
+                });
+            }
+            catch (ArgumentException excepcionArgumento)
+            {
+                return BadRequest(new
+                {
+                    estado = 400,
+                    mensaje = "Parámetros inválidos.",
+                    detalle = excepcionArgumento.Message,
+                    tabla = tabla
+                });
+            }
+            catch (InvalidOperationException excepcionOperacion)
+            {
+                return StatusCode(500, new
+                {
+                    estado = 500,
+                    mensaje = "Error en la operación de actualización.",
+                    detalle = excepcionOperacion.Message,
+                    tabla = tabla
+                });
+            }
+            catch (Exception excepcionGeneral)
+            {
+                _logger.LogError(excepcionGeneral,
+                    "ERROR CRÍTICO - Falla en actualización PK compuesta - Tabla: {Tabla}, Ruta: {Ruta}",
+                    tabla, rutaClaves
+                );
+
+                var detalleError = new System.Text.StringBuilder();
+                detalleError.AppendLine($"Tipo: {excepcionGeneral.GetType().Name}");
+                detalleError.AppendLine($"Mensaje: {excepcionGeneral.Message}");
+                if (excepcionGeneral.InnerException != null)
+                    detalleError.AppendLine($"Error interno: {excepcionGeneral.InnerException.Message}");
+
+                return StatusCode(500, new
+                {
+                    estado = 500,
+                    mensaje = "Error interno del servidor al actualizar registro.",
+                    tabla = tabla,
+                    tipoError = excepcionGeneral.GetType().Name,
+                    detalle = excepcionGeneral.Message,
+                    detalleCompleto = detalleError.ToString(),
+                    errorInterno = excepcionGeneral.InnerException?.Message,
+                    timestamp = DateTime.UtcNow,
+                    sugerencia = "Revise los logs para más detalles."
+                });
+            }
+        }
+
 
         /// <summary>
         /// Endpoint de información sobre el controlador y sus capacidades actuales.
@@ -1119,6 +1463,50 @@ namespace ApiGenericaCsharp.Controllers
                 // Garantiza que siempre devolvemos algo utilizable
                 _ => elemento.ToString()
             };
+        }
+
+        /// <summary>
+        /// Parsea una ruta de PK compuesta en pares (nombreColumna, valor).
+        /// 
+        /// Formato esperado: "col1/val1/col2/val2/..." (número par de segmentos)
+        /// 
+        /// Ejemplos:
+        ///   "proyecto/1/termino_clave/inteligencia"
+        ///       → [("proyecto","1"), ("termino_clave","inteligencia")]
+        ///   "area_conocimiento/5/proyecto/12"
+        ///       → [("area_conocimiento","5"), ("proyecto","12")]
+        /// 
+        /// Este helper se usa en EliminarCompuestaAsync y ActualizarCompuestaAsync para
+        /// transformar el segmento catch-all de la URL en una lista de pares lista para
+        /// que el servicio/repositorio construya el WHERE dinámico con N parámetros.
+        /// </summary>
+        /// <param name="rutaClaves">Segmento de URL con los pares clave/valor</param>
+        /// <returns>Lista de tuplas (nombreColumna, valor) lista para construir el WHERE</returns>
+        /// <exception cref="ArgumentException">Si la ruta es vacía o tiene número impar de segmentos</exception>
+        private List<(string nombre, string valor)> ParsearClavesCompuestas(string rutaClaves)
+        {
+            if (string.IsNullOrWhiteSpace(rutaClaves))
+                throw new ArgumentException("La ruta de claves no puede estar vacía.");
+
+            // Separar segmentos eliminando vacíos por si llega "/" al inicio o al final
+            var segmentos = rutaClaves.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+            // Debe haber un número par de segmentos: nombre/valor/nombre/valor/...
+            if (segmentos.Length == 0 || segmentos.Length % 2 != 0)
+            {
+                throw new ArgumentException(
+                    $"La ruta de claves compuestas debe tener un número par de segmentos " +
+                    $"(formato: col1/val1/col2/val2/...). Recibido: '{rutaClaves}'"
+                );
+            }
+
+            // Agrupar de a pares: (segmentos[0], segmentos[1]), (segmentos[2], segmentos[3]), ...
+            var pares = new List<(string nombre, string valor)>();
+            for (int i = 0; i < segmentos.Length; i += 2)
+            {
+                pares.Add((segmentos[i], segmentos[i + 1]));
+            }
+            return pares;
         }
 
         /// <summary>
