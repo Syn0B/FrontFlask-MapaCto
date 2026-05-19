@@ -177,8 +177,7 @@ namespace ApiGenericaCsharp.Controllers
         /// 
         /// Todas las respuestas incluyen información estructurada para facilitar el uso de la API.
         /// </returns>
-        //[AllowAnonymous]                                  // Permite acceso sin autenticación (apropiado para desarrollo)
-        //[Authorize]
+        [Authorize]
         [HttpGet]                                        // Responde exclusivamente a peticiones HTTP GET
         public async Task<IActionResult> ListarAsync(
             string tabla,                                 // Del path de la URL: /api/{tabla}
@@ -426,8 +425,7 @@ namespace ApiGenericaCsharp.Controllers
         /// Ejemplo: GET /api/factura/numero/1
         /// Con esquema: GET /api/factura/numero/1?esquema=ventas
         /// </summary>
-        //[AllowAnonymous]
-        //[Authorize]
+        [Authorize]
         [HttpGet("{nombreClave}/{valor}")]
         public async Task<IActionResult> ObtenerPorClaveAsync(
         string tabla,           // Del path: /api/{tabla}
@@ -543,7 +541,7 @@ namespace ApiGenericaCsharp.Controllers
         /// Ruta: POST /api/{tabla}
         /// Ejemplo: POST /api/usuario con body JSON
         /// </summary>
-        [AllowAnonymous]
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CrearAsync(
             string tabla,                                           // Del path: /api/{tabla}
@@ -678,7 +676,7 @@ namespace ApiGenericaCsharp.Controllers
         /// Ejemplo: PUT /api/usuario/email/juan@test.com con body JSON
         /// Con encriptación: PUT /api/usuario/email/juan@test.com?camposEncriptar=contrasena
         /// </summary>
-        [AllowAnonymous]
+        [Authorize]
         [HttpPut("{nombreClave}/{valorClave}")]
         public async Task<IActionResult> ActualizarAsync(
             string tabla,                                           // Del path: /api/{tabla}
@@ -829,7 +827,7 @@ namespace ApiGenericaCsharp.Controllers
         /// Ruta: DELETE /api/{tabla}/{nombreClave}/{valorClave}
         /// Ejemplo: DELETE /api/producto/codigo/PRD001
         /// </summary>
-        [AllowAnonymous]
+        [Authorize]
         [HttpDelete("{nombreClave}/{valorClave}")]
         public async Task<IActionResult> EliminarAsync(
             string tabla,                                          // Del path: /api/{tabla}
@@ -989,7 +987,7 @@ namespace ApiGenericaCsharp.Controllers
         /// Para PK simple sigue usándose el endpoint EliminarAsync existente
         /// (ASP.NET Core prefiere rutas más específicas sobre catch-all).
         /// </summary>
-        [AllowAnonymous]
+        [Authorize]
         [HttpDelete("{**rutaClaves}")]
         public async Task<IActionResult> EliminarCompuestaAsync(
             string tabla,                                          // Del path: /api/{tabla}
@@ -1143,7 +1141,7 @@ namespace ApiGenericaCsharp.Controllers
         ///   PUT /api/desarrolla/docente/3/proyecto/7  (con body JSON)
         ///   PUT /api/participa_grupo/docente/5/grupo_investigacion/2?camposEncriptar=token
         /// </summary>
-        [AllowAnonymous]
+        [Authorize]
         [HttpPut("{**rutaClaves}")]
         public async Task<IActionResult> ActualizarCompuestaAsync(
             string tabla,                                           // Del path: /api/{tabla}

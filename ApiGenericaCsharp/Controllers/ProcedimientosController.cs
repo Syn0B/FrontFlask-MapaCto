@@ -76,7 +76,7 @@ namespace ApiGenericaCsharp.Controllers
         /// <param name="parametrosSP">Diccionario con nombreSP y parámetros del procedimiento</param>
         /// <param name="camposEncriptar">Campos que deben ser encriptados, separados por coma (IGNORADO por ahora)</param>
         /// <returns>Resultados de la ejecución del procedimiento almacenado</returns>
-        //[Authorize]
+        [Authorize]
         [HttpPost("ejecutarsp")]
         public async Task<IActionResult> EjecutarProcedimientoAlmacenadoAsync(
             [FromBody] Dictionary<string, object?> parametrosSP,

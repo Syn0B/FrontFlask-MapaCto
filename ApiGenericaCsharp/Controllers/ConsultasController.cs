@@ -140,7 +140,7 @@ namespace ApiGenericaCsharp.Controllers
         ///   "Advertencia": null      // Mensaje si se alcanzó límite máximo
         /// }
         /// </returns>
-        //[Authorize]                                       // Requiere autenticación JWT válida
+        [Authorize]                                       // Requiere autenticación JWT válida
         [HttpPost("ejecutarconsultaparametrizada")]      // Responde a POST /api/consultas/ejecutarconsultaparametrizada
         public async Task<IActionResult> EjecutarConsultaParametrizadaAsync([FromBody] Dictionary<string, object?> cuerpoSolicitud)
         {
