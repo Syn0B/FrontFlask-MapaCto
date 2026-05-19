@@ -155,6 +155,7 @@ builder.Services.AddScoped<ApiGenericaCsharp.Servicios.Abstracciones.IServicioCo
 // -----------------------------------------------------------------
 switch (proveedorBD.ToLower())
 {
+    case "neon":
     case "postgres":
         // Repositorio de lectura para PostgreSQL
         builder.Services.AddScoped<ApiGenericaCsharp.Repositorios.Abstracciones.IRepositorioLecturaTabla,
