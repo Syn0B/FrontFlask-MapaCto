@@ -14,6 +14,7 @@
 // ---------------------------------------------------------
 // IMPORTACIONES NECESARIAS
 // ---------------------------------------------------------
+using Microsoft.AspNetCore.Authorization;            // Para [AllowAnonymous]
 using Microsoft.AspNetCore.Mvc;                      // Para el controlador y las acciones
 using Microsoft.Extensions.Options;                  // Para inyectar configuraciones (IOptions)
 using Microsoft.IdentityModel.Tokens;                // Para firmar y generar el token JWT
@@ -150,6 +151,125 @@ namespace ApiGenericaCsharp.Controllers
                 expiracion = token.ValidTo
             });
         }
+
+        // ---------------------------------------------------------
+        // POST: /api/autenticacion/restablecer-contrasena
+        // Descripción:
+        //   - Permite a un usuario que olvidó su contraseña restablecerla
+        //     proporcionando su usuario + email (ambos deben coincidir en BD).
+        //   - La nueva contraseña se encripta con BCrypt antes de guardarse
+        //     (gracias al parametro camposEncriptar del ServicioCrud).
+        //   - Es [AllowAnonymous] porque el usuario por definición no tiene
+        //     sesión activa: olvidó su contraseña y no puede hacer login.
+        // ---------------------------------------------------------
+        [AllowAnonymous]
+        [HttpPost("restablecer-contrasena")]
+        public async Task<IActionResult> RestablecerContrasena([FromBody] RestablecerContrasenaDto datos)
+        {
+            // -----------------------------------------------------
+            // VALIDACIONES BÁSICAS DEL BODY
+            // -----------------------------------------------------
+            if (datos == null ||
+                string.IsNullOrWhiteSpace(datos.Tabla) ||
+                string.IsNullOrWhiteSpace(datos.CampoUsuario) ||
+                string.IsNullOrWhiteSpace(datos.CampoEmail) ||
+                string.IsNullOrWhiteSpace(datos.CampoContrasena) ||
+                string.IsNullOrWhiteSpace(datos.Usuario) ||
+                string.IsNullOrWhiteSpace(datos.Email) ||
+                string.IsNullOrWhiteSpace(datos.NuevaContrasena))
+            {
+                return BadRequest(new
+                {
+                    estado = 400,
+                    mensaje = "Debe enviar tabla, campos, usuario, email y nueva contrasena."
+                });
+            }
+
+            try
+            {
+                // -------------------------------------------------
+                // FASE 1: Buscar el usuario por su campo de usuario.
+                // -------------------------------------------------
+                var filas = await _servicioCrud.ObtenerPorClaveAsync(
+                    datos.Tabla,
+                    null, // Esquema por defecto
+                    datos.CampoUsuario,
+                    datos.Usuario
+                );
+
+                if (filas.Count == 0)
+                {
+                    return NotFound(new { estado = 404, mensaje = "Usuario no encontrado." });
+                }
+
+                // -------------------------------------------------
+                // FASE 2: Verificar que el email registrado coincide
+                // con el email enviado. Comparación case-insensitive
+                // porque los emails no son sensibles a mayúsculas.
+                // -------------------------------------------------
+                var registro = filas[0];
+                string? emailRegistrado = null;
+
+                if (registro.TryGetValue(datos.CampoEmail, out var valorEmail) && valorEmail != null)
+                {
+                    emailRegistrado = valorEmail.ToString();
+                }
+
+                if (string.IsNullOrWhiteSpace(emailRegistrado) ||
+                    !string.Equals(emailRegistrado.Trim(), datos.Email.Trim(), System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return Unauthorized(new
+                    {
+                        estado = 401,
+                        mensaje = "El email no coincide con el usuario indicado."
+                    });
+                }
+
+                // -------------------------------------------------
+                // FASE 3: Actualizar la contraseña con encriptación
+                // BCrypt (via camposEncriptar). El servicio se encarga
+                // de hashear antes de persistir.
+                // -------------------------------------------------
+                var datosActualizar = new Dictionary<string, object?>
+                {
+                    [datos.CampoContrasena] = datos.NuevaContrasena
+                };
+
+                int filasAfectadas = await _servicioCrud.ActualizarAsync(
+                    datos.Tabla,
+                    null,
+                    datos.CampoUsuario,
+                    datos.Usuario,
+                    datosActualizar,
+                    datos.CampoContrasena // camposEncriptar: la API lo hashea con BCrypt
+                );
+
+                if (filasAfectadas == 0)
+                {
+                    return StatusCode(500, new
+                    {
+                        estado = 500,
+                        mensaje = "No se pudo restablecer la contrasena."
+                    });
+                }
+
+                return Ok(new
+                {
+                    estado = 200,
+                    mensaje = "Contrasena restablecida exitosamente.",
+                    usuario = datos.Usuario
+                });
+            }
+            catch (System.Exception excepcion)
+            {
+                return StatusCode(500, new
+                {
+                    estado = 500,
+                    mensaje = "Error interno al restablecer la contrasena.",
+                    detalle = excepcion.Message
+                });
+            }
+        }
     }
 
     // ---------------------------------------------------------
@@ -174,6 +294,36 @@ namespace ApiGenericaCsharp.Controllers
 
         // Contraseña enviada por el usuario (texto plano para comparar con hash en BD)
         public string Contrasena { get; set; } = string.Empty;
+    }
+
+    // ---------------------------------------------------------
+    // CLASE AUXILIAR: RestablecerContrasenaDto
+    // ---------------------------------------------------------
+    // Representa el cuerpo del POST para restablecer contraseña.
+    // El usuario olvidó su contraseña: se identifica con usuario + email,
+    // y proporciona una nueva contraseña que será encriptada con BCrypt.
+    public class RestablecerContrasenaDto
+    {
+        // Tabla de usuarios (ej: "usuario")
+        public string Tabla { get; set; } = string.Empty;
+
+        // Columna que identifica al usuario (ej: "username")
+        public string CampoUsuario { get; set; } = string.Empty;
+
+        // Columna que almacena el email del usuario (ej: "email")
+        public string CampoEmail { get; set; } = string.Empty;
+
+        // Columna que almacena la contraseña (ej: "password")
+        public string CampoContrasena { get; set; } = string.Empty;
+
+        // Valor del usuario que olvidó su contraseña
+        public string Usuario { get; set; } = string.Empty;
+
+        // Email que debe coincidir con el registrado para validar identidad
+        public string Email { get; set; } = string.Empty;
+
+        // Nueva contraseña en texto plano (se hashea antes de guardar)
+        public string NuevaContrasena { get; set; } = string.Empty;
     }
 }
 

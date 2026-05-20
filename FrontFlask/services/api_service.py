@@ -9,6 +9,10 @@ Cada metodo retorna los datos o una tupla (exito, mensaje).
 # requests: libreria de Python para hacer peticiones HTTP (GET, POST, PUT, DELETE)
 import requests
 
+# session: cookie firmada de Flask donde se guarda el JWT despues de hacer login.
+# Cada peticion al API debe enviar este token en el header Authorization.
+from flask import session
+
 # API_BASE_URL: URL base de la API, importada desde config.py (ej: "http://localhost:5035")
 from config import API_BASE_URL
 
@@ -30,6 +34,19 @@ class ApiService:
     def __init__(self):
         # Guarda la URL base como atributo de la instancia para usarla en todos los metodos
         self.base_url = API_BASE_URL
+
+    # ──────────────────────────────────────────────
+    # HELPER PRIVADO: arma los headers HTTP de cada peticion.
+    # Si hay un token JWT en la sesion de Flask, lo agrega como
+    # Authorization: Bearer <token>. La API exige este header en
+    # los controllers que tienen [Authorize].
+    # ──────────────────────────────────────────────
+    def _headers(self):
+        encabezados = {"Content-Type": "application/json"}
+        token = session.get("token")
+        if token:
+            encabezados["Authorization"] = f"Bearer {token}"
+        return encabezados
 
     # ──────────────────────────────────────────────
     # LISTAR: GET /api/{tabla}
@@ -59,7 +76,8 @@ class ApiService:
 
             # requests.get() hace una peticion HTTP GET a la URL indicada
             # params se agrega automaticamente como query string (ej: ?limite=5)
-            respuesta = requests.get(url, params=params)
+            # headers incluye el token JWT si hay sesion activa.
+            respuesta = requests.get(url, params=params, headers=self._headers())
 
             # .json() convierte el cuerpo de la respuesta de texto JSON a diccionario Python
             datos_json = respuesta.json()
@@ -106,7 +124,8 @@ class ApiService:
             # requests.post() hace una peticion HTTP POST.
             # json=datos: convierte el diccionario Python a JSON y lo envia en el cuerpo.
             # params: agrega los query params a la URL si existen.
-            respuesta = requests.post(url, json=datos, params=params)
+            # headers: envia el JWT para que la API acepte la operacion.
+            respuesta = requests.post(url, json=datos, params=params, headers=self._headers())
 
             # Convertir la respuesta JSON a diccionario Python
             contenido = respuesta.json()
@@ -151,7 +170,7 @@ class ApiService:
             if campos_encriptar:
                 params['camposEncriptar'] = campos_encriptar
 
-            respuesta = requests.put(url, json=datos, params=params)
+            respuesta = requests.put(url, json=datos, params=params, headers=self._headers())
             contenido = respuesta.json()
             mensaje = contenido.get("mensaje", "Operacion completada.")
             return (respuesta.ok, mensaje)
@@ -181,7 +200,7 @@ class ApiService:
             # Soporta PK simple y compuesta
             url = f"{self.base_url}/api/{tabla}/{self._ruta_clave(nombre_clave, valor_clave)}"
 
-            respuesta = requests.delete(url)
+            respuesta = requests.delete(url, headers=self._headers())
             contenido = respuesta.json()
             mensaje = contenido.get("mensaje", "Operacion completada.")
             return (respuesta.ok, mensaje)
@@ -215,7 +234,7 @@ class ApiService:
             if parametros:
                 payload.update(parametros)
 
-            respuesta = requests.post(url, json=payload)
+            respuesta = requests.post(url, json=payload, headers=self._headers())
             contenido = respuesta.json()
 
             if not respuesta.ok:

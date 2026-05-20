@@ -1,13 +1,12 @@
 {#
     nav_menu.html - Menu de navegacion lateral.
 
-    Se incluye dentro del sidebar en base.html con {% include %}.
-    Muestra los links a Home y a las 6 tablas disponibles.
-    El link activo se resalta comparando la ruta actual (request.path).
+    Cada link se muestra solo si la ruta esta en rutas_permitidas (variable
+    inyectada por el context_processor desde session). Asi cada rol ve solo
+    las paginas a las que tiene acceso.
 #}
 
-{# ───────── HEADER VISUAL MODERNO DEL SIDEBAR ───────── #}
-{# Se agrega un header mas llamativo con degradado y branding visual #}
+{# ───────── HEADER VISUAL ───────── #}
 <div class="sidebar-header">
     <div class="brand-container">
         <div class="brand-logo">GC</div>
@@ -19,98 +18,140 @@
     </div>
 </div>
 
-
+{# ───────── BLOQUE DE USUARIO Y ROLES ───────── #}
+{% if usuario %}
+<div class="px-3 py-2 text-white-50 small border-bottom">
+    <div>👤 <strong>{{ usuario }}</strong></div>
+    {% if roles %}
+        <div class="mt-1">🎭 {{ roles | join(', ') }}</div>
+    {% else %}
+        <div class="mt-1 text-warning">Sin roles asignados</div>
+    {% endif %}
+</div>
+{% endif %}
 
 {# ───────── LINKS DE NAVEGACION ───────── #}
 <div class="nav-scrollable">
     <nav class="nav flex-column">
 
-        {# Link a la pagina de inicio #}
+        {% if '/' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path == '/' }}" href="/">
                 <span class="nav-icon">🏠</span>
                 <span class="nav-text">Home</span>
             </a>
         </div>
+        {% endif %}
 
-        {# Links a las 3 tablas sin clave foranea #}
-
+        {% if '/termino_clave' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/termino_clave') }}" href="/termino_clave">
                 <span class="nav-icon">🔑</span>
                 <span class="nav-text">Termino clave</span>
             </a>
         </div>
+        {% endif %}
 
+        {% if '/tipo_producto' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/tipo_producto') }}" href="/tipo_producto">
                 <span class="nav-icon">📦</span>
                 <span class="nav-text">Tipo producto</span>
             </a>
         </div>
+        {% endif %}
 
+        {% if '/proyecto' in rutas_permitidas %}
         <div class="nav-item">
-            <a class="nav-link {{ 'active' if request.path.startswith('/proyecto') }}" href="/proyecto">
+            <a class="nav-link {{ 'active' if request.path == '/proyecto' or request.path.startswith('/proyecto/') }}" href="/proyecto">
                 <span class="nav-icon">📂</span>
                 <span class="nav-text">Proyecto</span>
             </a>
         </div>
+        {% endif %}
 
+        {% if '/palabras_clave' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/palabras_clave') }}" href="/palabras_clave">
                 <span class="nav-icon">🔧</span>
                 <span class="nav-text">Palabras clave</span>
             </a>
         </div>
+        {% endif %}
 
+        {% if '/aa_proyecto' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/aa_proyecto') }}" href="/aa_proyecto">
                 <span class="nav-icon">🗺️</span>
                 <span class="nav-text">AA por Proyecto</span>
             </a>
         </div>
-      
+        {% endif %}
+
+        {% if '/ods_proyecto' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/ods_proyecto') }}" href="/ods_proyecto">
                 <span class="nav-icon">🌱</span>
                 <span class="nav-text">ODS por Proyecto</span>
             </a>
         </div>
+        {% endif %}
 
+        {% if '/proyecto_linea' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/proyecto_linea') }}" href="/proyecto_linea">
                 <span class="nav-icon">🔬</span>
                 <span class="nav-text">Linea por Proyecto</span>
             </a>
         </div>
-      
-      <div class="nav-item">
+        {% endif %}
+
+        {% if '/ac_proyecto' in rutas_permitidas %}
+        <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/ac_proyecto') }}" href="/ac_proyecto">
                 <span class="nav-icon">🧠</span>
                 <span class="nav-text">AC por Proyecto</span>
             </a>
         </div>
+        {% endif %}
 
+        {% if '/docente_producto' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/docente_producto') }}" href="/docente_producto">
                 <span class="nav-icon">👨‍🏫</span>
                 <span class="nav-text">Docente por Producto</span>
             </a>
         </div>
+        {% endif %}
 
+        {% if '/aliado_proyecto' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/aliado_proyecto') }}" href="/aliado_proyecto">
                 <span class="nav-icon">🤝</span>
                 <span class="nav-text">Aliado por Proyecto</span>
             </a>
         </div>
+        {% endif %}
 
+        {% if '/desarrolla' in rutas_permitidas %}
         <div class="nav-item">
             <a class="nav-link {{ 'active' if request.path.startswith('/desarrolla') }}" href="/desarrolla">
                 <span class="nav-icon">👩‍💻</span>
                 <span class="nav-text">Desarrolla</span>
             </a>
         </div>
+        {% endif %}
+
+        {# ───────── SECCION CUENTA: siempre visible para usuarios autenticados ───────── #}
+        {% if usuario %}
+        <hr class="text-white-50 mx-3 my-2">
+        <div class="nav-item">
+            <a class="nav-link {{ 'active' if request.path.startswith('/cambiar-contrasena') }}" href="{{ url_for('auth.cambiar_contrasena') }}">
+                <span class="nav-icon">🔒</span>
+                <span class="nav-text">Cambiar contrasena</span>
+            </a>
+        </div>
+        {% endif %}
 
     </nav>
 </div>
