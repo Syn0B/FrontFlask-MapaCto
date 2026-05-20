@@ -1,0 +1,48 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Cambiar contrasena{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 520px;">
+
+    <h3>🔒 Cambiar contrasena</h3>
+    <p class="text-muted">
+        Actualice la contrasena de <strong>{{ usuario }}</strong>.
+        Debe tener al menos 6 caracteres, una mayuscula y un numero.
+    </p>
+
+    <div class="card shadow-sm mt-3">
+        <div class="card-body p-4">
+            <form method="POST" action="{{ url_for('auth.cambiar_contrasena_post') }}">
+
+                <div class="mb-3">
+                    <label for="nueva" class="form-label">Nueva contrasena</label>
+                    <input type="password"
+                           class="form-control"
+                           id="nueva"
+                           name="nueva"
+                           placeholder="Minimo 6 caracteres, 1 mayuscula, 1 numero"
+                           required />
+                </div>
+
+                <div class="mb-3">
+                    <label for="confirmacion" class="form-label">Confirmar contrasena</label>
+                    <input type="password"
+                           class="form-control"
+                           id="confirmacion"
+                           name="confirmacion"
+                           placeholder="Repita la nueva contrasena"
+                           required />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Actualizar contrasena</button>
+                    <a href="{{ url_for('home.index') }}" class="btn btn-secondary">Cancelar</a>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
