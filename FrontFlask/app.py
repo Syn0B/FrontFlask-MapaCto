@@ -6,10 +6,13 @@ e inicia el servidor de desarrollo en el puerto 5100.
 """
 
 # Flask: clase principal del framework web para crear la aplicacion
-from flask import Flask
+from flask import Flask, session
 
 # SECRET_KEY: clave secreta definida en config.py, necesaria para mensajes flash
 from config import SECRET_KEY
+
+# Middleware de autenticacion: redirige a /login si no hay sesion
+from middleware.auth_middleware import crear_middleware
 
 
 # ══════════════════════════════════════════════
@@ -32,6 +35,7 @@ app.secret_key = SECRET_KEY
 # ══════════════════════════════════════════════
 
 # Importar el Blueprint de cada modulo de rutas.
+from routes.auth import bp as auth_bp
 from routes.home import bp as home_bp
 from routes.termino_clave import bp as termino_clave_bp
 from routes.tipo_producto import bp as tipo_producto_bp
@@ -48,6 +52,7 @@ from routes.producto import bp as producto_bp
 
 
 # register_blueprint() conecta las rutas del Blueprint a la aplicacion Flask.
+app.register_blueprint(auth_bp)
 app.register_blueprint(home_bp)
 app.register_blueprint(termino_clave_bp)
 app.register_blueprint(tipo_producto_bp)
@@ -61,6 +66,28 @@ app.register_blueprint(docente_producto_bp)
 app.register_blueprint(aliado_proyecto_bp)
 app.register_blueprint(desarrolla_bp)
 app.register_blueprint(producto_bp)
+
+
+# ══════════════════════════════════════════════
+# CONTEXT PROCESSOR
+# Inyecta variables de la sesion en TODAS las templates automaticamente.
+# Asi, en cualquier .html se puede usar {{ usuario }} sin pasarlo en render_template.
+# ══════════════════════════════════════════════
+@app.context_processor
+def inyectar_sesion():
+    return {
+        "usuario": session.get("usuario", ""),
+        "roles": session.get("roles", []),
+        "rutas_permitidas": set(session.get("rutas_permitidas", [])),
+    }
+
+
+# ══════════════════════════════════════════════
+# MIDDLEWARE DE AUTENTICACION
+# Se registra al final, despues de definir todas las rutas.
+# Intercepta cada request y redirige a /login si no hay sesion.
+# ══════════════════════════════════════════════
+crear_middleware(app)
 
 
 # ══════════════════════════════════════════════
