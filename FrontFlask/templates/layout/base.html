@@ -32,9 +32,22 @@
 
         {# ───────── CONTENIDO PRINCIPAL ───────── #}
         <main>
-            {# Barra superior con el nombre del frontend #}
-            <div class="top-row px-4">
+            {# Barra superior con el nombre del frontend y el usuario logueado #}
+            <div class="top-row px-4 d-flex justify-content-between align-items-center">
                 <span>Frontend Flask — API GenericaCsharp</span>
+
+                {# Bloque de usuario + logout. Solo visible si hay sesion activa.
+                   La variable 'usuario' la inyecta el context_processor desde session. #}
+                {% if usuario %}
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small">
+                            👤 <strong>{{ usuario }}</strong>
+                        </span>
+                        <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-danger">
+                            Cerrar sesion
+                        </a>
+                    </div>
+                {% endif %}
             </div>
 
             {# Area donde se inserta el contenido de cada pagina #}
