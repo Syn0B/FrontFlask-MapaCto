@@ -441,7 +441,6 @@ ALTER TABLE ONLY public.rol_usuario
 
 > **Notas sobre seguridad**:
 > - **No existen tablas `ruta` ni `rutarol` en la BD**. Las rutas permitidas por rol se calculan en código (`services/auth_service.py → calcular_rutas_permitidas`) con las reglas hardcodeadas para los roles `Admin`, `EncargadoProyectos` y `Visitante`.
-> - **No hay triggers** definidos en el esquema actual. Toda la lógica transaccional para maestro-detalle vive en los Stored Procedures de la sección 3.
 
 ---
 
@@ -456,8 +455,6 @@ El proyecto usa los **5 Stored Procedures** definidos en `ProcedimientosAlmacena
 | 3 | `sp_actualizar_proyecto_y_productos` | `POST /proyecto/actualizar` | **SYNC diferencial**: UPDATE existentes, INSERT nuevos, DELETE removidos |
 | 4 | `sp_borrar_proyecto_y_productos` | `POST /proyecto/eliminar` | Borra maestro + detalles + limpia tablas puente |
 | 5 | `sp_listar_proyecto_y_productos` | (opcional) | Lista proyectos con sus productos anidados |
-
-> **No hay triggers** ni otros SPs definidos. Estos cinco son los únicos creados en el dump.
 
 ### 3.1 SP: Consultar proyecto y productos
 
@@ -795,10 +792,6 @@ $$ LANGUAGE plpgsql;
 ```
 
 ---
-
-## 4. Triggers
-
-**El esquema actual no define ningún trigger** (`CREATE TRIGGER ...`). Toda la lógica transaccional para garantizar consistencia maestro-detalle vive en los 5 Stored Procedures de la sección anterior. Si en una entrega futura se agregan triggers (por ejemplo, para auditoría o cálculo automático de campos derivados), deben documentarse aquí.
 
 ---
 
