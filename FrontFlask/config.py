@@ -11,7 +11,7 @@ la URL de la API y la clave secreta para sesiones/flash.
 # Se usa en ApiService para construir las URLs de cada peticion HTTP.
 # Ejemplo: f"{API_BASE_URL}/api/producto" genera "http://localhost:5035/api/producto"
 # ──────────────────────────────────────────────
-API_BASE_URL = "http://localhost:5035"
+API_BASE_URL = "http://apicsharpneon-mapacto.runasp.net"
 
 # ──────────────────────────────────────────────
 # Clave secreta para el manejo de sesiones y mensajes flash.
