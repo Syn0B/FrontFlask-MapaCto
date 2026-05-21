@@ -18,95 +18,7 @@ API REST generica para operaciones CRUD sobre cualquier tabla de base de datos. 
 
 ---
 
-### 1. Claves y Secretos Expuestos
-
-#### 1.1 JWT Key hardcodeada en appsettings.json
-
-**Que es JWT (JSON Web Token):** Es un estandar para transmitir informacion de autenticacion entre cliente y servidor. El servidor firma el token con una clave secreta; si alguien conoce esa clave, puede crear tokens falsos y hacerse pasar por cualquier usuario.
-
-**Problema:** La clave secreta esta escrita directamente en `appsettings.json`:
-```json
-"Key": "MySuperSecretKey1234567890!@#$%^&*()"
-```
-Cualquier persona con acceso al repositorio (publico o privado comprometido) puede forjar tokens y tener acceso total a la API.
-
-**Solucion:** Mover la clave a una **variable de entorno** del sistema operativo, que nunca se sube al repositorio:
-```bash
-# En el servidor o maquina de desarrollo, definir la variable:
-set JWT_SECRET_KEY=MiClaveSecretaReal123456789!@#$
-```
-```csharp
-// En Program.cs, leer desde el entorno:
-var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
-    ?? throw new InvalidOperationException("JWT_SECRET_KEY no configurada");
-```
-
-#### 1.2 Credenciales de base de datos en texto plano
-
-**Que es una connection string:** Es la cadena de texto que contiene servidor, base de datos, usuario y contrasena para conectarse a la BD. Si queda expuesta, cualquiera puede conectarse directamente.
-
-**Problema:** Las connection strings en `appsettings.json` contienen usuarios y contrasenas visibles:
-```
-"Postgres": "...Username=postgres;Password=postgres;..."
-"MariaDB": "...Uid=root;Pwd=;..."
-```
-Ademas incluyen el nombre de la maquina (`LAPTOP-PRP44KEV`), exponiendo informacion de infraestructura.
-
-**Solucion:** Usar variables de entorno para cada connection string:
-```bash
-set CONNSTR_SQLSERVER=Server=miservidor;Database=mibd;...
-set CONNSTR_POSTGRES=Host=localhost;Port=5432;...
-```
-```csharp
-var connStr = Environment.GetEnvironmentVariable("CONNSTR_SQLSERVER");
-```
-En entornos cloud, usar servicios de secretos como **Azure Key Vault**, **AWS Secrets Manager** o **Docker Secrets**.
-
-#### 1.3 appsettings.Development.json en el historial de Git
-
-**Que es .gitignore:** Es un archivo que le dice a Git cuales archivos NO debe incluir en el repositorio. Los archivos de configuracion con secretos deben estar en `.gitignore`.
-
-**Problema:** Aunque `appsettings.Development.json` esta en `.gitignore` actualmente, si alguna vez fue commiteado, las credenciales permanecen en el historial de Git para siempre.
-
-**Solucion:**
-```bash
-# Eliminar del tracking de Git (sin borrar el archivo local):
-git rm --cached appsettings.Development.json
-# Verificar que .gitignore lo incluya (ya lo tiene)
-# Usar: git filter-branch o BFG Repo-Cleaner para limpiar el historial si fue commiteado
-```
-
----
-
-### 2. Endpoints sin Autenticacion
-
-#### Que es un endpoint protegido
-
-**Que es `[Authorize]`:** Es un atributo de ASP.NET que obliga al cliente a enviar un token JWT valido en la cabecera `Authorization: Bearer {token}` para poder acceder al endpoint. Sin el, cualquier persona puede hacer peticiones.
-
-**Que es `[AllowAnonymous]`:** Es el atributo opuesto: permite acceso sin token. Solo debe usarse en endpoints publicos como login o informacion basica.
-
-**Problema actual:**
-
-| Endpoint | Estado actual | Riesgo |
-|----------|--------------|--------|
-| `POST /api/{tabla}` (crear) | `[AllowAnonymous]` | Cualquiera inserta registros |
-| `PUT /api/{tabla}/{clave}/{valor}` (actualizar) | `[AllowAnonymous]` | Cualquiera modifica datos |
-| `DELETE /api/{tabla}/{clave}/{valor}` (eliminar) | `[AllowAnonymous]` | Cualquiera borra datos |
-| `POST /api/consultas/ejecutarconsultaparametrizada` | `[Authorize]` comentado | Ejecucion libre de SQL |
-| `POST /api/procedimientos/ejecutarsp` | `[Authorize]` comentado | Ejecucion libre de SPs |
-| `GET /api/diagnostico/conexion` | `[AllowAnonymous]` | Expone version de BD, servidor, usuario |
-
-**Solucion:** Descomentar `[Authorize]` en los endpoints de escritura y consultas. Agregar `[Authorize]` al endpoint de diagnostico o eliminarlo en produccion:
-```csharp
-[Authorize]  // En vez de [AllowAnonymous]
-[HttpPost]
-public async Task<IActionResult> CrearAsync(...) { ... }
-```
-
----
-
-### 3. CORS Completamente Abierto
+### 1. CORS Completamente Abierto
 
 **Que es CORS (Cross-Origin Resource Sharing):** Es un mecanismo de seguridad del navegador que controla desde cuales sitios web se puede llamar a la API. Por ejemplo, si la API esta en `api.miempresa.com`, CORS define si `otraweb.com` puede hacer peticiones.
 
@@ -131,9 +43,9 @@ opts.AddPolicy("MiPolitica", politica => politica
 
 ---
 
-### 4. Problemas de Rendimiento
+### 2. Problemas de Rendimiento
 
-#### 4.1 Consultas N+1 en metadata de columnas
+#### 2.1 Consultas N+1 en metadata de columnas
 
 **Que es el problema N+1:** Ocurre cuando, para procesar N registros, se ejecuta 1 consulta adicional por cada uno. Si se actualizan 10 campos, son 10 consultas extra a `INFORMATION_SCHEMA` para saber el tipo de dato de cada campo.
 
@@ -150,7 +62,7 @@ private static ConcurrentDictionary<string, Dictionary<string, string>> _cacheMe
 var tipos = await ObtenerTodosLosTiposAsync(tabla);  // 1 query en vez de N
 ```
 
-#### 4.2 Sin limite maximo de paginacion
+#### 2.2 Sin limite maximo de paginacion
 
 **Que es paginacion:** Es la tecnica de dividir grandes conjuntos de datos en paginas (ej: 50 registros por pagina). Sin paginacion, una tabla de 1 millon de registros se devolveria completa en una sola respuesta, agotando la memoria del servidor.
 
@@ -161,7 +73,7 @@ var tipos = await ObtenerTodosLosTiposAsync(tabla);  // 1 query en vez de N
 if (limite > 500) limite = 500;  // Maximo absoluto
 ```
 
-#### 4.3 Sin connection pooling en SQL Server y MariaDB
+#### 2.3 Sin connection pooling en SQL Server y MariaDB
 
 **Que es connection pooling:** Es una tecnica donde se reutilizan conexiones a la BD en vez de crear y destruir una por cada peticion. Crear una conexion es costoso (autenticacion, handshake TCP); el pool mantiene varias abiertas y listas para usar.
 
@@ -173,7 +85,7 @@ SQL Server: ...;Max Pool Size=50;
 MariaDB:    ...;MaximumPoolSize=50;
 ```
 
-#### 4.4 Sin cache de respuestas
+#### 2.4 Sin cache de respuestas
 
 **Que es response caching:** Es una tecnica donde el servidor guarda en memoria el resultado de una consulta y lo reutiliza durante un tiempo (ej: 5 minutos) sin volver a consultar la BD. Util para datos que cambian poco, como catalogos de productos o roles.
 
@@ -187,7 +99,7 @@ public async Task<IActionResult> ObtenerTodosAsync(...) { ... }
 ```
 Para datos que cambian frecuentemente, usar ETags o cache con invalidacion.
 
-#### 4.5 Agotamiento de conexiones bajo carga concurrente
+#### 2.5 Agotamiento de conexiones bajo carga concurrente
 
 **Que es la concurrencia en una API:** Cuando muchos usuarios hacen peticiones al mismo tiempo, cada peticion necesita una conexion a la BD. Si hay 200 usuarios simultaneos y cada operacion abre 1 conexion + 10 conexiones extra para metadata, son 2.200 conexiones al mismo tiempo. La BD tiene un limite (por defecto ~100-150 conexiones), y cuando se agota, las peticiones empiezan a fallar o quedan en espera.
 
@@ -263,7 +175,7 @@ PostgreSQL: ...;Maximum Pool Size=200;Minimum Pool Size=10;
 
 Con estas 3 soluciones, los mismos 100 usuarios haciendo UPDATE pasan de **1.100 conexiones** a **100 conexiones** (1 por usuario).
 
-#### 4.6 Timeout de 300 segundos en SPs y consultas
+#### 2.6 Timeout de 300 segundos en SPs y consultas
 
 **Que es un CommandTimeout:** Es el tiempo maximo que el servidor espera a que una consulta termine antes de cancelarla. Si una consulta tarda mas, se aborta.
 
@@ -283,7 +195,7 @@ Si un SP queda en deadlock o ejecuta una consulta muy pesada, la conexion queda 
 comando.CommandTimeout = _config.GetValue<int>("CommandTimeoutSegundos", 30);
 ```
 
-#### 4.7 Sin limite de peticiones concurrentes (Throttling)
+#### 2.7 Sin limite de peticiones concurrentes (Throttling)
 
 **Que es throttling:** Es limitar la cantidad de peticiones que la API acepta por segundo para proteger la BD. Sin throttling, un solo cliente puede enviar miles de peticiones y saturar el servidor para todos los demas.
 
@@ -305,7 +217,7 @@ app.UseRateLimiter();
 
 ---
 
-### 5. Informacion Sensible en Errores
+### 3. Informacion Sensible en Errores
 
 **Que es un stack trace:** Es la traza completa del error que muestra nombres de archivos, numeros de linea, nombres de metodos y rutas internas del servidor. Es util para el desarrollador pero peligroso si lo ve un atacante, porque revela la estructura interna del codigo.
 
@@ -328,7 +240,7 @@ return StatusCode(500, new { mensaje = "Error interno del servidor" });  // Clie
 
 ---
 
-### 6. Sin Proteccion contra Fuerza Bruta
+### 4. Sin Proteccion contra Fuerza Bruta
 
 **Que es un ataque de fuerza bruta:** Es cuando un atacante intenta miles de combinaciones de usuario/contrasena automaticamente hasta encontrar la correcta. Sin limite de intentos, el atacante puede probar indefinidamente.
 
@@ -355,7 +267,7 @@ public async Task<IActionResult> Login(...) { ... }
 
 ---
 
-### 7. Headers de Seguridad HTTP Faltantes
+### 5. Headers de Seguridad HTTP Faltantes
 
 **Que son los security headers:** Son cabeceras HTTP que el servidor envia al navegador para activar protecciones contra ataques comunes como clickjacking, sniffing de tipos MIME o inyeccion de scripts.
 
@@ -382,9 +294,9 @@ app.Use(async (context, next) => {
 
 ---
 
-### 8. Modelo de Seguridad Generico
+### 6. Modelo de Seguridad Generico
 
-#### 8.1 Blacklist vs Whitelist de tablas
+#### 6.1 Blacklist vs Whitelist de tablas
 
 **Que es blacklist vs whitelist:**
 - **Blacklist (lista negra):** "Todo esta permitido excepto lo que prohibo". Si se crea una tabla nueva, queda automaticamente accesible.
@@ -397,18 +309,9 @@ app.Use(async (context, next) => {
 "TablasPermitidas": ["producto", "cliente", "factura", "persona", "empresa"]
 ```
 
-#### 8.2 Sin control de acceso por tabla/campo/fila
-
-**Problema actual:**
-- Un usuario autenticado puede leer/escribir **cualquier** tabla permitida
-- No hay restriccion por campos (ej: ocultar el campo `contrasena`)
-- No hay restriccion por filas (ej: un cliente solo ve sus propias facturas)
-
-**Solucion a largo plazo:** Implementar RBAC (Role-Based Access Control) donde cada rol tiene permisos especificos por tabla y operacion. La tabla `rutarol` ya maneja permisos por ruta del frontend; se podria extender para las rutas de la API.
-
 ---
 
-### 9. Sin Auditoria Persistente
+### 7. Sin Auditoria Persistente
 
 **Que es una tabla de auditoria:** Es un registro permanente de todas las operaciones importantes: quien hizo que, sobre cual tabla, que valores cambio y cuando. Es fundamental para cumplimiento normativo (GDPR, SOX) y para investigar incidentes.
 
@@ -429,7 +332,7 @@ CREATE TABLE auditoria (
 
 ---
 
-### 10. Sin Operaciones Masivas (Bulk)
+### 8. Sin Operaciones Masivas (Bulk)
 
 **Que son las operaciones masivas (bulk):** Son endpoints que permiten crear, actualizar o eliminar **multiples registros en una sola peticion HTTP**. En vez de enviar 100 peticiones para insertar 100 productos, se envia 1 peticion con un array de 100 productos.
 
@@ -544,7 +447,7 @@ public async Task<BulkResult> CrearMasivoAsync(string tabla, List<Dictionary<str
 
 ---
 
-### 11. Como Agregar un Nuevo Motor de Base de Datos (ej: Oracle)
+### 9. Como Agregar un Nuevo Motor de Base de Datos (ej: Oracle)
 
 **Que es la inyeccion de dependencias (DI):** Es un patron donde las clases no crean sus dependencias directamente, sino que las reciben "inyectadas" desde afuera. En esta API, los controllers no saben si estan hablando con SQL Server, PostgreSQL u Oracle. Solo conocen la **interface** (`IRepositorioLecturaTabla`). Al arrancar la aplicacion, `Program.cs` decide cual implementacion concreta inyectar segun la configuracion.
 
@@ -704,7 +607,7 @@ Este es el beneficio del **Principio de Abierto/Cerrado (OCP)**: la API esta **a
 
 ---
 
-### 12. Uso Empresarial: Arquitectura Hibrida (Generico + Dedicado)
+### 10. Uso Empresarial: Arquitectura Hibrida (Generico + Dedicado)
 
 #### Para que sirve esta API hoy
 
@@ -878,12 +781,10 @@ Esto da lo mejor de ambos mundos: velocidad de desarrollo del generico + rendimi
 
 ---
 
-### 13. Resumen y Prioridades
+### 11. Resumen y Prioridades
 
 | Prioridad | Que hacer | Esfuerzo |
 |-----------|-----------|----------|
-| **Inmediato** | Mover JWT key y passwords de BD a variables de entorno | Bajo |
-| **Inmediato** | Descomentar `[Authorize]` en endpoints de escritura, consultas y SPs | Bajo |
 | **Inmediato** | Restringir CORS a origenes conocidos | Bajo |
 | **Corto plazo** | Cachear metadata de columnas (elimina N+1 y reduce conexiones) | Medio |
 | **Corto plazo** | Reutilizar conexion dentro del mismo metodo (no abrir 1 por campo) | Medio |

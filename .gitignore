@@ -42,6 +42,12 @@ FrontFlask/.vscode/
 # Configuracion de desarrollo de ASP.NET (puede contener connection strings locales)
 appsettings.Development.json
 
+# appsettings.json principal de la API.
+# En su lugar se comitea appsettings.Example.json como plantilla, y los valores
+# reales se inyectan via env vars en produccion (MonsterASP) o se ponen en
+# appsettings.Development.json en local (ya gitignored arriba).
+appsettings.json
+
 
 # ── Sistema operativo ──────────────────────────
 .DS_Store
