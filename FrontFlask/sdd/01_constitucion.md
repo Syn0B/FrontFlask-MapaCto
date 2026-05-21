@@ -350,5 +350,5 @@ Según Spec-Kit Artículo VII: *"Máximo complejidad inicial mínima."*
 
 - **Versión**: 1.0
 - **Fecha**: 2026-05-21
-- **Autores**: Samuel Giraldo, Jostin (Estudiantes Diseño de Software USB)
+- **Autores**: Samuel Giraldo, Jostin (Estudiantes Construcción de Software USB)
 - **Referencia Spec-Kit**: [github.com/github/spec-kit](https://github.com/github/spec-kit)
