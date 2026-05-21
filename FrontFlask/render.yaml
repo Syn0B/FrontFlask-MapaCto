@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: front-flask-mapa-cto
+    env: python
+    plan: free
+    buildCommand: apt-get install -y unixodbc-dev && pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DB_PROVIDER
+        value: postgres
+      - key: DB_POSTGRES
+        sync: false
