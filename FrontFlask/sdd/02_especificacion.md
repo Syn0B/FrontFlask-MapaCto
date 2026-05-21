@@ -38,71 +38,68 @@ Un frontend web completo en **Flask** que consume la API REST `apicsharpneon-map
 | # | Funcionalidad | Descripción | Tablas involucradas |
 |---|---------------|-------------|---------------------|
 | 1 | CRUD proyecto-productos | Crear, editar y eliminar proyectos con sus productos en una transacción (Stored Procedure) | `proyecto`, `producto`, `tipo_producto` |
-| 2 | CRUD catálogos | Listar/crear/editar/eliminar `tipo_producto`, `termino_clave`, `palabras_clave` | `tipo_producto`, `termino_clave`, `palabras_clave` |
-| 3 | Asignaciones de proyecto | Asociar a un proyecto sus áreas académicas, áreas de conocimiento, ODS, líneas y aliados | `aa_proyecto`, `ac_proyecto`, `ods_proyecto`, `proyecto_linea`, `aliado_proyecto` |
-| 4 | Relación docente-producto | Asignar docentes a los productos derivados | `docente_producto` |
-| 5 | Relación desarrolla | Asignar docentes a proyectos con rol y descripción | `desarrolla` (PK compuesta) |
-| 6 | Login | Autenticación con email + contraseña (BCrypt vía API) | `usuario` |
-| 7 | Control de acceso | Roles y rutas permitidas por rol, verificación en cada request | `rol`, `rol_usuario`, `ruta`, `rutarol` |
-| 8 | Navegación | Sidebar con menú colapsable, layout base Bootstrap 5 | N/A |
-| 9 | Descubrimiento dinámico | PKs y FKs se descubren de la API, no se hardcodean | Todas |
+| 2 | CRUD `tipo_producto` | Catálogo institucional de tipos (categoria, clase, nombre, tipologia) | `tipo_producto` |
+| 3 | CRUD `termino_clave` | Catálogo de términos (PK es la cadena `termino`, opcionalmente `termino_ingles`) | `termino_clave` |
+| 4 | Asignación N:M `palabras_clave` | Vincula proyectos con términos clave (NO es un catálogo: es una tabla puente) | `palabras_clave` (proyecto, termino_clave) |
+| 5 | Asignaciones N:M de proyecto | Asociar a un proyecto sus áreas de aplicación, áreas de conocimiento, ODS, líneas y aliados | `aa_proyecto`, `ac_proyecto`, `ods_proyecto`, `proyecto_linea`, `aliado_proyecto` |
+| 6 | Relación docente-producto | Asignar docentes a los productos derivados | `docente_producto` |
+| 7 | Relación desarrolla | Asignar docentes a proyectos con rol y descripción | `desarrolla` (PK compuesta + atributos) |
+| 8 | Login | Autenticación con username + password (BCrypt vía API) | `usuario` |
+| 9 | Control de acceso | Roles hardcodeados en `auth_service.py` (Admin, EncargadoProyectos, Visitante) — **no hay tabla `ruta`/`rutarol`** | `rol`, `rol_usuario` |
+| 10 | Navegación | Sidebar con menú colapsable, layout base Bootstrap 5 | N/A |
 
 ### 3.2 Modelo de datos (tablas de la BD)
 
 ```
-┌──────────┐     ┌──────────────┐     ┌──────┐     ┌──────────┐     ┌──────┐
-│ usuario  │──<──│ rol_usuario  │──>──│ rol  │──<──│ rutarol  │──>──│ ruta │
-│ email PK │     │ fkemail      │     │ id   │     │ fkidrol  │     │ id   │
-│ contrase │     │ fkidrol      │     │ nomb │     │ fkidruta │     │ ruta │
-└──────────┘     └──────────────┘     └──────┘     └──────────┘     └──────┘
+                                  SEGURIDAD
+   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+   │   usuario    │──<──│ rol_usuario  │──>──│     rol      │
+   │ id        PK │     │ usuario_id PK│     │ id        PK │
+   │ username UK  │     │ rol_id     PK│     │ nombre    UK │
+   │ password     │     └──────────────┘     │ descripcion  │
+   │ email     UK │           N:M            │ activo       │
+   │ nombre_compl │                          │ fecha_creac. │
+   │ activo       │                          └──────────────┘
+   │ fechas       │
+   └──────────────┘
+   (No existen tablas "ruta" ni "rutarol": las rutas permitidas se calculan
+    en auth_service.py segun el rol — Admin / EncargadoProyectos / Visitante.)
 
-┌──────────┐         ┌──────────────────┐         ┌────────────────┐
-│ proyecto │────<────│ producto         │────>────│ tipo_producto  │
-│ id  PK   │         │ id  PK           │         │ id  PK         │
-│ titulo   │         │ nombre           │         │ nombre         │
-│ resumen  │         │ categoria        │         └────────────────┘
-│ presup.  │         │ fecha_entrega    │
-│ fechas   │         │ fkproyecto       │
-└────┬─────┘         │ fktipo_producto  │
-     │               └────────┬─────────┘
-     │                        │
-     │                        v
-     │               ┌──────────────────┐         ┌──────────┐
-     │               │ docente_producto │────>────│ docente  │
-     │               │ fkproducto       │         │ cedula PK│
-     │               │ fkdocente        │         │ nombre   │
-     │               └──────────────────┘         └────┬─────┘
-     │                                                  │
-     │           ┌─────────────────────┐                │
-     ├──<────────│ desarrolla          │────────────────┤
-     │           │ docente, proyecto PK│                │
-     │           │ rol, descripcion    │                │
-     │           └─────────────────────┘                │
-     │
-     ├──<───┐  ┌─────────────┐  ┌─────┐
-     │      └──│ aa_proyecto │──│ aa  │   Areas academicas
-     │         └─────────────┘  └─────┘
-     │
-     ├──<───┐  ┌─────────────┐  ┌─────┐
-     │      └──│ ac_proyecto │──│ ac  │   Areas de conocimiento
-     │         └─────────────┘  └─────┘
-     │
-     ├──<───┐  ┌──────────────┐ ┌─────┐
-     │      └──│ ods_proyecto │─│ ods │   Objetivos de Desarrollo Sostenible
-     │         └──────────────┘ └─────┘
-     │
-     ├──<───┐  ┌──────────────────┐ ┌──────┐
-     │      └──│ proyecto_linea   │─│ linea│   Lineas de investigacion
-     │         └──────────────────┘ └──────┘
-     │
-     └──<───┐  ┌──────────────────┐ ┌────────┐
-            └──│ aliado_proyecto  │─│ aliado │   Aliados externos
-               └──────────────────┘ └────────┘
+                              NEGOCIO MAESTRO-DETALLE
+   ┌──────────────┐         ┌──────────────────┐         ┌─────────────────────┐
+   │   proyecto   │────<────│     producto     │────>────│    tipo_producto    │
+   │ id        PK │         │ id            PK │         │ id              PK  │
+   │ titulo (70)  │         │ nombre (45)      │         │ categoria (45)      │
+   │ resumen(256) │         │ categoria (45)   │         │ clase (45)          │
+   │ presupuesto  │         │ fecha_entrega    │         │ nombre (45)         │
+   │ tipo_finan.  │         │ proyecto    FK   │         │ tipologia (45)      │
+   │ tipo_fondos  │         │ tipo_producto FK │         └─────────────────────┘
+   │ fecha_inicio │         └─────────┬────────┘
+   │ fecha_fin    │                   │
+   └──────┬───────┘                   v
+          │                  ┌──────────────────┐         ┌────────────────┐
+          │                  │ docente_producto │────>────│    docente     │
+          │                  │ docente    PK    │         │ cedula      PK │
+          │                  │ producto   PK    │         │ nombres        │
+          │                  └──────────────────┘         │ apellidos      │
+          │                                               │ genero, cargo  │
+          │     ┌─────────────────────┐                   │ correo, tel    │
+          ├──<──│     desarrolla      │──>────────────────┤ url_cvlac, ... │
+          │     │ docente    PK       │                   │ escalafon      │
+          │     │ proyecto   PK       │                   │ perfil (text)  │
+          │     │ rol         (45) NN │                   │ cat_minciencia │
+          │     │ descripcion (256)NN │                   │ conv_minciencia│
+          │     └─────────────────────┘                   │ nacionalidaad  │
+          │                                               │ linea_principal│
+          │                                               └────────────────┘
 
-┌────────────────┐    ┌────────────────┐
-│ termino_clave  │    │ palabras_clave │
-│ id PK, termino │    │ id PK, palabra │
-└────────────────┘    └────────────────┘
+                          TABLAS PUENTE (N:M con proyecto)
+   proyecto <──<── aa_proyecto     ──>── area_aplicacion   (id, nombre)
+   proyecto <──<── ac_proyecto     ──>── area_conocimiento (id, gran_area, area, disciplina)
+   proyecto <──<── ods_proyecto    ──>── objetivo_desarrollo_sostenible (id, nombre, categoria)
+   proyecto <──<── proyecto_linea  ──>── linea_investigacion (id, nombre, descripcion)
+   proyecto <──<── aliado_proyecto ──>── aliado (nit PK, razon_social, ...)
+   proyecto <──<── palabras_clave  ──>── termino_clave (termino PK str, termino_ingles)
 ```
 
 ### 3.3 Modelo Entidad-Relación (ER) detallado
@@ -119,95 +116,131 @@ El modelo ER define las **entidades** (tablas), sus **atributos** (columnas), la
 
 #### Tabla de entidades y atributos
 
+> Los nombres, tipos y nullabilidad provienen del dump real `BdMapaConocimiento.sql`. Ver [data-model.md](data-model.md) para el DDL completo.
+
 **Entidades de negocio (maestro-detalle):**
 
-| Entidad | PK | Atributos | Tipo | NOT NULL | Descripción |
-|---------|-----|-----------|------|----------|-------------|
-| `proyecto` | `id` (serial) | `titulo` | varchar | sí | Título del proyecto |
-| | | `resumen` | text | sí | Resumen ejecutivo |
-| | | `presupuesto` | decimal | sí | Presupuesto asignado |
-| | | `tipo_financiacion` | varchar | sí | Interna / Externa |
-| | | `tipo_fondos` | varchar | sí | Recurrentes / Frescos |
-| | | `fecha_inicio` | date | sí | Fecha de arranque |
-| | | `fecha_fin` | date | no | Fecha estimada de cierre |
-| `producto` | `id` (serial) | `nombre` | varchar | sí | Nombre del producto académico |
-| | | `categoria` | varchar | sí | Artículo, libro, software, etc. |
-| | | `fecha_entrega` | date | sí | Fecha de entrega prevista |
-| | | `fkproyecto` | integer FK | sí | → `proyecto.id` |
-| | | `fktipo_producto` | integer FK | sí | → `tipo_producto.id` |
-| `tipo_producto` | `id` (serial) | `nombre` | varchar | sí | Nombre del tipo (Artículo Q1, Libro, etc) |
-| `docente` | `cedula` (integer) | `nombre` | varchar | sí | Nombre del docente |
-| | | `correo` | varchar | no | Correo institucional |
+| Entidad | PK | Atributo | Tipo | NULL? | Descripción |
+|---------|-----|----------|------|-------|-------------|
+| `proyecto` | `id` (int) | `titulo` | varchar(70) | NN | Título del proyecto |
+| | | `resumen` | varchar(256) | NN | Resumen ejecutivo |
+| | | `presupuesto` | double precision | NN | Presupuesto asignado |
+| | | `tipo_financiacion` | varchar(45) | NN | Tipo de financiación |
+| | | `tipo_fondos` | varchar(45) | NN | Tipo de fondos |
+| | | `fecha_inicio` | date | NN | Fecha de arranque |
+| | | `fecha_fin` | date | NULL | Fecha estimada de cierre |
+| `producto` | `id` (int) | `nombre` | varchar(45) | NN | Nombre del producto |
+| | | `categoria` | varchar(45) | NN | Categoría del producto |
+| | | `fecha_entrega` | date | NN | Fecha de entrega prevista |
+| | | `proyecto` | int FK | NULL | → `proyecto.id` (nullable en el esquema) |
+| | | `tipo_producto` | int FK | NN | → `tipo_producto.id` |
+| `tipo_producto` | `id` (int) | `categoria` | varchar(45) | NN | Categoría institucional |
+| | | `clase` | varchar(45) | NN | Clase |
+| | | `nombre` | varchar(45) | NN | Nombre del tipo |
+| | | `tipologia` | varchar(45) | NN | Tipología |
+| `docente` | `cedula` (int) | `nombres` | varchar(60) | NN | Nombres |
+| | | `apellidos` | varchar(60) | NN | Apellidos |
+| | | `genero` | varchar(12) | NN | Género |
+| | | `cargo` | varchar(30) | NN | Cargo |
+| | | `fecha_nacimiento` | date | NN | Fecha de nacimiento |
+| | | `correo` | varchar(70) | NN | Correo institucional |
+| | | `telefono` | varchar(20) | NN | Teléfono |
+| | | `url_cvlac` | varchar(128) | NN | URL del CvLAC |
+| | | `fecha_actualizacion` | date | NN | Última actualización |
+| | | `escalafon` | varchar(45) | NN | Escalafón |
+| | | `perfil` | text | NN | Perfil descriptivo |
+| | | `cat_minciencia` | varchar(45) | NULL | Categoría MinCiencias |
+| | | `conv_minciencia` | varchar(45) | NN | Convocatoria MinCiencias |
+| | | `nacionalidaad` | varchar(45) | NN | Nacionalidad (typo del esquema) |
+| | | `linea_investigacion_principal` | int FK | NULL | → `linea_investigacion.id` |
+| `aliado` | `nit` (int) | `razon_social` | varchar(60) | NN | Razón social |
+| | | `nombre_contacto` | varchar(60) | NN | Persona de contacto |
+| | | `correo` | varchar(70) | NN | Correo |
+| | | `telefono` | varchar(45) | NN | Teléfono |
+| | | `ciudad` | varchar(45) | NN | Ciudad |
 
-**Entidades catálogo:**
+**Entidades catálogo / maestras:**
 
-| Entidad | PK | Atributos | Tipo | NOT NULL | Descripción |
-|---------|-----|-----------|------|----------|-------------|
-| `termino_clave` | `id` (serial) | `termino` | varchar | sí | Término de búsqueda |
-| `palabras_clave` | `id` (serial) | `palabra` | varchar | sí | Palabra clave del proyecto |
-| `aa` | `id` (serial) | `nombre` | varchar | sí | Área académica |
-| `ac` | `id` (serial) | `nombre` | varchar | sí | Área de conocimiento |
-| `ods` | `id` (integer) | `nombre` | varchar | sí | Objetivo de Desarrollo Sostenible (1–17) |
-| `linea` | `id` (serial) | `nombre` | varchar | sí | Línea de investigación |
-| `aliado` | `id` (serial) | `nombre` | varchar | sí | Aliado externo (empresa, universidad) |
+| Entidad | PK | Atributos | Notas |
+|---------|-----|-----------|-------|
+| `termino_clave` | `termino` varchar(30) | `termino_ingles` varchar(30) NULL | **PK es la cadena**, no un id |
+| `area_aplicacion` | `id` (int) | `nombre` varchar(60) NN | Referenciada como "aa" en tablas puente |
+| `area_conocimiento` | `id` (int) | `gran_area`, `area`, `disciplina` varchar(60) NN | Referenciada como "ac" |
+| `objetivo_desarrollo_sostenible` | `id` (int) | `nombre` varchar(60) NN, `categoria` varchar(45) NN | Referenciada como "ods" |
+| `linea_investigacion` | `id` (int) | `nombre` varchar(45) NN, `descripcion` varchar(256) NN | No se llama solo "linea" |
 
-**Entidades relacionales (N:M):**
+**Tablas puente (N:M):**
 
-| Entidad | PK compuesta | Atributos extra | Descripción |
-|---------|--------------|-----------------|-------------|
-| `aa_proyecto` | `(fkproyecto, fkaa)` | — | Proyectos por área académica |
-| `ac_proyecto` | `(fkproyecto, fkac)` | — | Proyectos por área de conocimiento |
-| `ods_proyecto` | `(fkproyecto, fkods)` | — | ODS asociados al proyecto |
-| `proyecto_linea` | `(fkproyecto, fklinea)` | — | Líneas de investigación del proyecto |
-| `aliado_proyecto` | `(fkproyecto, fkaliado)` | — | Aliados que apoyan el proyecto |
-| `docente_producto` | `(fkdocente, fkproducto)` | — | Docentes autores del producto |
-| `desarrolla` | `(docente, proyecto)` | `rol`, `descripcion` | Docente desarrolla proyecto con un rol |
+> **Importante**: no tienen columna `id` propia ni prefijos `fk`. Sus PKs son compuestas y sus columnas se llaman como las entidades referenciadas.
+
+| Tabla puente | PK compuesta | Atributos extra | Descripción |
+|--------------|--------------|-----------------|-------------|
+| `aa_proyecto` | `(proyecto, area_aplicacion)` | — | Áreas de aplicación del proyecto |
+| `ac_proyecto` | `(proyecto, area_conocimiento)` | — | Áreas de conocimiento del proyecto |
+| `ods_proyecto` | `(proyecto, ods)` | — | ODS asociados al proyecto |
+| `proyecto_linea` | `(proyecto, linea_investigacion)` | — | Líneas de investigación del proyecto |
+| `aliado_proyecto` | `(aliado, proyecto)` | — | Aliados que apoyan el proyecto |
+| `palabras_clave` | `(proyecto, termino_clave)` | — | **N:M proyecto ↔ termino_clave** (no es catálogo) |
+| `docente_producto` | `(docente, producto)` | — | Docentes autores del producto |
+| `desarrolla` | `(docente, proyecto)` | `rol` varchar(45) NN, `descripcion` varchar(256) NN | Docente desarrolla proyecto con un rol |
 
 **Entidades de seguridad:**
 
-| Entidad | PK | Atributos | Tipo | NOT NULL | Descripción |
-|---------|-----|-----------|------|----------|-------------|
-| `usuario` | `email` (varchar) | `contrasena` | varchar | sí | Hash BCrypt (irreversible) |
-| | | `nombre` | varchar | no | Nombre para mostrar |
-| `rol` | `id` (serial) | `nombre` | varchar | sí | Administrador, Docente, Consulta |
-| `rol_usuario` | `id` (serial) | `fkemail` | varchar FK | sí | → `usuario.email` |
-| | | `fkidrol` | integer FK | sí | → `rol.id` |
-| `ruta` | `id` (serial) | `ruta` | varchar | sí | Path de la página (`/proyecto`) |
-| `rutarol` | `id` (serial) | `fkidrol` | integer FK | sí | → `rol.id` |
-| | | `fkidruta` | integer FK | sí | → `ruta.id` |
+| Entidad | PK | Atributo | Tipo | NULL? | Notas |
+|---------|-----|----------|------|-------|-------|
+| `usuario` | `id` (serial) | `username` | varchar(100) | NN, UNIQUE | login |
+| | | `password` | varchar(255) | NN | Hash BCrypt |
+| | | `email` | varchar(150) | NN, UNIQUE | Para restablecer pwd |
+| | | `nombre_completo` | varchar(200) | NULL | Nombre para mostrar |
+| | | `activo` | boolean | NULL (default true) | |
+| | | `fecha_creacion` | timestamp | NULL (default now) | |
+| | | `fecha_actualizacion` | timestamp | NULL (default now) | |
+| `rol` | `id` (serial) | `nombre` | varchar(100) | NN, UNIQUE | Admin / EncargadoProyectos / Visitante |
+| | | `descripcion` | text | NULL | |
+| | | `activo` | boolean | NULL (default true) | |
+| | | `fecha_creacion` | timestamp | NULL (default now) | |
+| `rol_usuario` | `(usuario_id, rol_id)` | `usuario_id` | int FK | NN | → `usuario.id` ON DELETE CASCADE |
+| | | `rol_id` | int FK | NN | → `rol.id` ON DELETE CASCADE |
+
+> **No existen tablas `ruta` ni `rutarol` en el esquema actual**. Las rutas permitidas por rol se calculan en `services/auth_service.py` (función `calcular_rutas_permitidas`) según el rol del usuario.
 
 #### Cardinalidad de las relaciones
 
 | Relación | Tipo | Lectura | Tabla intermedia |
 |----------|------|---------|------------------|
-| `proyecto` ↔ `producto` | 1:N | Un proyecto tiene 0 o N productos | No (FK directo) |
-| `tipo_producto` ↔ `producto` | 1:N | Un tipo se usa en 0 o N productos | No (FK directo) |
-| `proyecto` ↔ `aa` | N:M | Un proyecto en varias áreas académicas | Sí: `aa_proyecto` |
-| `proyecto` ↔ `ac` | N:M | Un proyecto en varias áreas de conocimiento | Sí: `ac_proyecto` |
-| `proyecto` ↔ `ods` | N:M | Un proyecto aporta a varios ODS | Sí: `ods_proyecto` |
-| `proyecto` ↔ `linea` | N:M | Un proyecto puede tocar varias líneas | Sí: `proyecto_linea` |
+| `proyecto` ↔ `producto` | 1:N | Un proyecto tiene 0 o N productos (FK nullable) | No (FK directo) |
+| `tipo_producto` ↔ `producto` | 1:N | Un tipo se usa en 0 o N productos | No (FK directo, NOT NULL) |
+| `proyecto` ↔ `area_aplicacion` | N:M | Un proyecto en varias áreas de aplicación | Sí: `aa_proyecto` |
+| `proyecto` ↔ `area_conocimiento` | N:M | Un proyecto en varias áreas de conocimiento | Sí: `ac_proyecto` |
+| `proyecto` ↔ `objetivo_desarrollo_sostenible` | N:M | Un proyecto aporta a varios ODS | Sí: `ods_proyecto` |
+| `proyecto` ↔ `linea_investigacion` | N:M | Un proyecto puede tocar varias líneas | Sí: `proyecto_linea` |
 | `proyecto` ↔ `aliado` | N:M | Un proyecto tiene varios aliados | Sí: `aliado_proyecto` |
-| `proyecto` ↔ `docente` | N:M | Un docente desarrolla varios proyectos | Sí: `desarrolla` (con atributos) |
+| `proyecto` ↔ `termino_clave` | N:M | Un proyecto tiene N términos clave | Sí: `palabras_clave` |
+| `proyecto` ↔ `docente` | N:M | Un docente desarrolla varios proyectos | Sí: `desarrolla` (con `rol` y `descripcion`) |
 | `producto` ↔ `docente` | N:M | Un producto tiene varios autores | Sí: `docente_producto` |
-| `usuario` ↔ `rol` | N:M | Un usuario tiene N roles, un rol tiene N usuarios | Sí: `rol_usuario` |
-| `rol` ↔ `ruta` | N:M | Un rol accede a N rutas | Sí: `rutarol` |
+| `usuario` ↔ `rol` | N:M | Un usuario tiene N roles, un rol tiene N usuarios | Sí: `rol_usuario` (ON DELETE CASCADE) |
 
 #### Integridad referencial
 
 ```
-ON DELETE: Las FKs principales usan NO ACTION (no se puede borrar un proyecto
-           si tiene productos asociados, salvo que se use el SP que limpia
-           todo en cascada controlada).
+ON DELETE en el esquema real:
+  - rol_usuario: ON DELETE CASCADE (al borrar usuario o rol, se borran sus asignaciones)
+  - Resto de FKs: NO ACTION por defecto (no hay CASCADE declarado)
 
-ON UPDATE: NO ACTION. Si se cambia una PK, los FKs no se actualizan
-           automaticamente.
+ON UPDATE: NO ACTION en todas las FKs.
 
 Consecuencia practica:
   - No se puede borrar un docente que tenga registros en desarrolla o
-    docente_producto sin antes desasignarlo.
-  - No se puede borrar un tipo_producto que este siendo usado por algun producto.
-  - El SP sp_borrar_proyecto_y_productos elimina el proyecto y todas sus
-    relaciones en una sola transaccion (atomica).
+    docente_producto sin antes desasignarlo (NO ACTION).
+  - No se puede borrar un tipo_producto que este siendo usado por algun
+    producto.
+  - El SP sp_borrar_proyecto_y_productos limpia las 7 tablas puente
+    (aa_proyecto, ac_proyecto, aliado_proyecto, desarrolla, ods_proyecto,
+    palabras_clave, proyecto_linea) y todos los productos del proyecto antes
+    de borrar el maestro, simulando un ON DELETE CASCADE.
+
+Triggers: el esquema actual NO define triggers. Toda la logica
+transaccional vive en los 5 stored procedures.
 ```
 
 ### 3.4 Flujos de usuario
@@ -338,5 +371,5 @@ Usuario navega a /ods_proyecto -> Lista asociaciones
 
 - **Versión**: 1.0
 - **Fecha**: 2026-05-21
-- **Autores**: Samuel Giraldo, Jostin (Estudiantes Diseño de Software USB)
+- **Autores**: Samuel Giraldo, Jostin (Estudiantes Construcción de Software USB)
 - **Referencia Spec-Kit**: [github.com/github/spec-kit](https://github.com/github/spec-kit)

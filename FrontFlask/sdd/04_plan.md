@@ -127,48 +127,52 @@ Etapa 6 + 7 + 8  (paralelo: consulta producto, N:M, desarrolla)
 
 ## 4. Modelo de datos
 
+> Resumen del esquema real (PostgreSQL 18.1). Para el DDL completo, ver [data-model.md](data-model.md).
+
 ### Tablas de negocio
 
-| Tabla | PK | Campos clave | FKs |
-|-------|-----|--------------|-----|
-| `proyecto` | `id` | `titulo`, `resumen`, `presupuesto`, `tipo_financiacion`, `tipo_fondos`, `fecha_inicio`, `fecha_fin` | — |
-| `producto` | `id` | `nombre`, `categoria`, `fecha_entrega` | `fkproyecto` → `proyecto`, `fktipo_producto` → `tipo_producto` |
-| `tipo_producto` | `id` | `nombre` | — |
-| `docente` | `cedula` | `nombre`, `correo` | — |
-| `aliado` | `id` | `nombre` | — |
+| Tabla | PK | Campos | FKs |
+|-------|-----|--------|-----|
+| `proyecto` | `id` (int) | `titulo` varchar(70), `resumen` varchar(256), `presupuesto` double, `tipo_financiacion` varchar(45), `tipo_fondos` varchar(45), `fecha_inicio` date, `fecha_fin` date NULL | — |
+| `producto` | `id` (int) | `nombre` varchar(45), `categoria` varchar(45), `fecha_entrega` date | `proyecto` → `proyecto.id` (nullable), `tipo_producto` → `tipo_producto.id` |
+| `tipo_producto` | `id` (int) | `categoria`, `clase`, `nombre`, `tipologia` (todos varchar(45) NN) | — |
+| `docente` | `cedula` (int) | `nombres`, `apellidos`, `genero`, `cargo`, `fecha_nacimiento`, `correo`, `telefono`, `url_cvlac`, `fecha_actualizacion`, `escalafon`, `perfil` (text), `cat_minciencia`, `conv_minciencia`, `nacionalidaad` | `linea_investigacion_principal` (NULL) |
+| `aliado` | `nit` (int) | `razon_social`, `nombre_contacto`, `correo`, `telefono`, `ciudad` | — |
 
-### Tablas catálogo
+### Tablas catálogo / maestras
 
 | Tabla | PK | Campos |
 |-------|-----|--------|
-| `termino_clave` | `id` | `termino` |
-| `palabras_clave` | `id` | `palabra` |
-| `aa` | `id` | `nombre` (Área Académica) |
-| `ac` | `id` | `nombre` (Área de Conocimiento) |
-| `ods` | `id` | `nombre`, `numero` |
-| `linea` | `id` | `nombre` |
+| `termino_clave` | `termino` varchar(30) | `termino_ingles` varchar(30) NULL |
+| `area_aplicacion` | `id` (int) | `nombre` varchar(60) NN |
+| `area_conocimiento` | `id` (int) | `gran_area`, `area`, `disciplina` (varchar(60) NN) |
+| `objetivo_desarrollo_sostenible` | `id` (int) | `nombre` varchar(60) NN, `categoria` varchar(45) NN |
+| `linea_investigacion` | `id` (int) | `nombre` varchar(45) NN, `descripcion` varchar(256) NN |
 
-### Tablas relacionales (N:M)
+### Tablas puente (N:M)
+
+> Sin columna `id` propia. PK compuesta formada por las dos FKs. Sin prefijo `fk`.
 
 | Tabla | PK compuesta | Atributos extra |
 |-------|--------------|-----------------|
-| `aa_proyecto` | `(fkproyecto, fkaa)` | — |
-| `ac_proyecto` | `(fkproyecto, fkac)` | — |
-| `ods_proyecto` | `(fkproyecto, fkods)` | — |
-| `proyecto_linea` | `(fkproyecto, fklinea)` | — |
-| `aliado_proyecto` | `(fkproyecto, fkaliado)` | — |
-| `docente_producto` | `(fkdocente, fkproducto)` | — |
-| `desarrolla` | `(docente, proyecto)` | `rol`, `descripcion` |
+| `aa_proyecto` | `(proyecto, area_aplicacion)` | — |
+| `ac_proyecto` | `(proyecto, area_conocimiento)` | — |
+| `ods_proyecto` | `(proyecto, ods)` | — |
+| `proyecto_linea` | `(proyecto, linea_investigacion)` | — |
+| `aliado_proyecto` | `(aliado, proyecto)` | — |
+| `palabras_clave` | `(proyecto, termino_clave)` | — (N:M con `termino_clave`) |
+| `docente_producto` | `(docente, producto)` | — |
+| `desarrolla` | `(docente, proyecto)` | `rol` varchar(45) NN, `descripcion` varchar(256) NN |
 
 ### Tablas de seguridad (auth)
 
 | Tabla | PK | Campos | FKs |
 |-------|-----|--------|-----|
-| `usuario` | `id` | `username`, `email`, `password` (BCrypt) | — |
-| `rol` | `id` | `nombre` | — |
-| `rol_usuario` | `id` | — | `usuario_id`, `rol_id` |
-| `ruta` | `id` | `ruta`, `descripcion` | — |
-| `rutarol` | `id` | — | `fkidrol`, `fkidruta` |
+| `usuario` | `id` (serial) | `username` UNIQUE, `password` (BCrypt), `email` UNIQUE, `nombre_completo`, `activo`, `fecha_creacion`, `fecha_actualizacion` | — |
+| `rol` | `id` (serial) | `nombre` UNIQUE, `descripcion` (text), `activo`, `fecha_creacion` | — |
+| `rol_usuario` | `(usuario_id, rol_id)` | — | `usuario_id` → `usuario.id` ON DELETE CASCADE, `rol_id` → `rol.id` ON DELETE CASCADE |
+
+> **No existen tablas `ruta` ni `rutarol`** en el esquema. Las rutas permitidas por rol se calculan en `services/auth_service.py → calcular_rutas_permitidas`.
 
 ---
 
@@ -184,7 +188,7 @@ Etapa 6 + 7 + 8  (paralelo: consulta producto, N:M, desarrolla)
 | Middleware `before_request` | Decorador `@login_required` | Protege TODO automáticamente |
 | `context_processor` | Pasar vars manual | Inyecta en todas las templates |
 | API en `runasp.net` (remota) | API local | Permite trabajo colaborativo Samuel + Jostin |
-| Roles hardcodeados en `auth_service` | Tabla `rutarol` en BD | Implementación inicial simple; futura migración a `rutarol` |
+| Roles hardcodeados en `auth_service` | Tabla de rutas en BD | El esquema **no incluye** tablas `ruta`/`rutarol`; las reglas viven en `calcular_rutas_permitidas` |
 
 ---
 
@@ -205,11 +209,14 @@ DELETE /api/{tabla}/{pk1}/{val1}/{pk2}/{val2}                <- Eliminar PK comp
 
 ```
 POST   /api/procedimientos/ejecutarsp                        <- Ejecuta cualquier SP
-   sp_insertar_proyecto_y_productos
-   sp_actualizar_proyecto_y_productos
-   sp_borrar_proyecto_y_productos
-   sp_consultar_proyecto_y_productos
+   sp_consultar_proyecto_y_productos    -- GET  /proyecto?accion=editar
+   sp_insertar_proyecto_y_productos     -- POST /proyecto/crear
+   sp_actualizar_proyecto_y_productos   -- POST /proyecto/actualizar (SYNC diferencial)
+   sp_borrar_proyecto_y_productos       -- POST /proyecto/eliminar
+   sp_listar_proyecto_y_productos       -- opcional: listar con productos anidados
 ```
+
+> No hay triggers en el esquema. Todos los SPs estan definidos en `ProcedimientosAlmacenados.sql`.
 
 ### Autenticación y seguridad
 
@@ -322,7 +329,7 @@ sequenceDiagram
     API->>BD: INSERT INTO proyecto (titulo, ...) RETURNING id
     BD-->>API: nuevo_id
     loop Por cada producto
-        API->>BD: INSERT INTO producto (nombre, fkproyecto, ...)
+        API->>BD: INSERT INTO producto (id, nombre, categoria, fecha_entrega, proyecto, tipo_producto)
     end
     API->>BD: COMMIT
     BD-->>API: OK
@@ -550,5 +557,5 @@ AuthService                    ApiService
 
 - **Versión**: 1.0
 - **Fecha**: 2026-05-21
-- **Autores**: Samuel Giraldo, Jostin (Estudiantes Diseño de Software USB)
+- **Autores**: Samuel Giraldo, Jostin (Estudiantes Construcción de Software USB)
 - **Referencia Spec-Kit**: [github.com/github/spec-kit](https://github.com/github/spec-kit)

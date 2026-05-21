@@ -410,7 +410,7 @@ FrontFlask-MapaCto/FrontFlask/
 | Proyecto nuevo, 1 estudiante | Spec-Kit solo (constitution + specs por feature) |
 | Proyecto nuevo, 2-3 estudiantes (como nosotros) | Spec-Kit (constitution + git extension) + OpenSpec (delta specs para cada estudiante) |
 | Proyecto existente, agregar features | OpenSpec solo (delta specs + propose + archive) |
-| Curso de Diseño de Software | Ambas + `sdd/` manual (para enseñar conceptos: SOLID, ACID, patrones, diagramas) |
+| Curso de Construcción de Software | Ambas + `sdd/` manual (para enseñar conceptos: SOLID, ACID, patrones, diagramas) |
 | Producción real | OpenSpec (brownfield, rápido, multiidioma) |
 
 ---
@@ -457,6 +457,6 @@ FrontFlask-MapaCto/FrontFlask/
 
 - **Versión**: 1.0
 - **Fecha**: 2026-05-21
-- **Autores**: Samuel Giraldo, Jostin (Estudiantes Diseño de Software USB)
+- **Autores**: Samuel Giraldo, Jostin (Estudiantes Construcción de Software USB)
 - **Referencia OpenSpec**: [github.com/Fission-AI/OpenSpec](https://github.com/Fission-AI/OpenSpec)
 - **Referencia Spec-Kit**: [github.com/github/spec-kit](https://github.com/github/spec-kit)
