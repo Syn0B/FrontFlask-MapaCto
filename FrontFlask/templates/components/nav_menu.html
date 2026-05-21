@@ -20,13 +20,20 @@
 
 {# ───────── BLOQUE DE USUARIO Y ROLES ───────── #}
 {% if usuario %}
-<div class="px-3 py-2 text-white-50 small border-bottom">
-    <div>👤 <strong>{{ usuario }}</strong></div>
-    {% if roles %}
-        <div class="mt-1">🎭 {{ roles | join(', ') }}</div>
-    {% else %}
-        <div class="mt-1 text-warning">Sin roles asignados</div>
-    {% endif %}
+<div class="sidebar-user-card">
+    <div class="sidebar-user-avatar">{{ usuario[0] | upper }}</div>
+    <div class="sidebar-user-info">
+        <div class="sidebar-user-name">{{ usuario }}</div>
+        <div class="sidebar-user-roles">
+            {% if roles %}
+                {% for rol in roles %}
+                    <span class="sidebar-role-pill">{{ rol }}</span>
+                {% endfor %}
+            {% else %}
+                <span class="sidebar-role-pill sidebar-role-pill--warn">Sin roles</span>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endif %}
 

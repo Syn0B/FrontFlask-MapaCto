@@ -31,8 +31,8 @@
     <form method="GET" action="{{ url_for('producto.index') }}"
           class="d-flex align-items-center mb-3">
         <label class="form-label me-2 mb-0">Limite:</label>
-        <input class="form-control me-2" type="number" name="limite"
-               style="width:100px" value="{{ limite or '' }}" />
+        <input class="form-control me-2 input-limite" type="number" name="limite"
+               value="{{ limite or '' }}" />
         <button class="btn btn-outline-secondary" type="submit">Cargar</button>
     </form>
 

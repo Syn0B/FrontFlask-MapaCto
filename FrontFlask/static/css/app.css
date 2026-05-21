@@ -1,49 +1,174 @@
 /* ══════════════════════════════════════════════
-   app.css - Estilos personalizados del frontend Flask.
+   app.css - Tema visual Dark + Purple Glass UI.
 
-   Secciones:
-     1. Estructura de pagina (sidebar + main)
-     2. Sidebar y barra superior
-     3. Toggle movil (hamburguesa)
-     4. Iconos de navegacion
-     5. Items de navegacion
-     6. Responsive
+   Inspirado en el UI kit:
+     - Fondos oscuros (negro/charcoal)
+     - Tarjetas redondeadas con bordes sutiles
+     - Gradientes violeta -> azul como acento
+     - Botones con resplandor (glow) y bordes pill
+     - Tipografia clara sobre fondo oscuro
+
+   IMPORTANTE: este archivo solo redefine el ASPECTO visual.
+   Toda la funcionalidad (rutas, formularios, tablas, JS) permanece
+   intacta. Las clases sobrescritas son las de Bootstrap 5.
    ══════════════════════════════════════════════ */
+
+
+/* ───────── 0. VARIABLES DE COLOR ───────── */
+
+:root {
+    /* Paleta base oscura */
+    --bg-deep:        #0b0b14;
+    --bg-base:        #11111d;
+    --bg-elev-1:      #1a1a2b;
+    --bg-elev-2:      #20202f;
+    --bg-elev-3:      #2a2a3d;
+
+    /* Acentos violeta (segun el UI kit) */
+    --accent-1:       #8b5cf6;   /* violeta principal */
+    --accent-2:       #a855f7;   /* violeta brillante */
+    --accent-3:       #6366f1;   /* indigo de soporte */
+    --accent-glow:    rgba(139, 92, 246, 0.45);
+
+    /* Gradiente firma */
+    --grad-purple:    linear-gradient(135deg, #8b5cf6 0%, #a855f7 50%, #6366f1 100%);
+    --grad-purple-soft: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(99,102,241,0.18));
+
+    /* Texto */
+    --text-strong:    #f5f5fa;
+    --text-base:      #e2e2ec;
+    --text-muted:     #9a9ab0;
+    --text-faded:     #6e6e85;
+
+    /* Bordes y separadores */
+    --border-soft:    rgba(255, 255, 255, 0.08);
+    --border-mid:     rgba(255, 255, 255, 0.14);
+
+    /* Sombras */
+    --shadow-card:    0 10px 40px rgba(0, 0, 0, 0.45);
+    --shadow-glow:    0 8px 30px var(--accent-glow);
+
+    /* Radios */
+    --r-sm: 10px;
+    --r-md: 14px;
+    --r-lg: 20px;
+    --r-pill: 999px;
+}
 
 
 /* ───────── 1. ESTRUCTURA DE PAGINA ───────── */
 
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
-    font-family: "Inter", "Segoe UI", sans-serif;
-    background: linear-gradient(135deg, #f0f4ff, #e0f2fe);
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: var(--text-base);
+    background:
+        radial-gradient(1200px 600px at 85% -10%, rgba(139, 92, 246, 0.18), transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, rgba(99, 102, 241, 0.18), transparent 55%),
+        linear-gradient(180deg, var(--bg-deep), var(--bg-base));
+    min-height: 100vh;
+}
+
+/* Forzar override sobre clases Bootstrap utilitarias */
+body.bg-light {
+    background:
+        radial-gradient(1000px 600px at 80% -10%, rgba(139, 92, 246, 0.22), transparent 60%),
+        radial-gradient(800px 500px at -10% 100%, rgba(99, 102, 241, 0.22), transparent 60%),
+        linear-gradient(180deg, var(--bg-deep), var(--bg-base)) !important;
 }
 
 .page {
     display: flex;
+    min-height: 100vh;
 }
 
 main {
     flex: 1;
-    padding: 2rem;
+    padding: 1.5rem 2rem 3rem;
+    min-width: 0;
 }
 
+.content {
+    margin-top: 1.25rem;
+}
 
-/* ───────── 2. SIDEBAR Y BARRA SUPERIOR ───────── */
+/* Tipografia general */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-strong);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+h1 { font-size: 1.85rem; }
+h3 { font-size: 1.45rem; }
+
+p, span, label, td, th, li, small, code, .lead {
+    color: var(--text-base);
+}
+
+.lead {
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+a {
+    color: #c4b5fd;
+    text-decoration: none;
+    transition: color .2s ease;
+}
+a:hover { color: #ddd6fe; }
+
+code {
+    background: rgba(139, 92, 246, 0.12);
+    color: #d8b4fe;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.85em;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid var(--border-soft);
+    opacity: 1;
+}
+
+/* Bootstrap text utility overrides para que se vean en dark */
+.text-muted    { color: var(--text-muted) !important; }
+.text-white-50 { color: rgba(255,255,255,0.55) !important; }
+.text-warning  { color: #fbbf24 !important; }
+
+
+/* ───────── 2. SIDEBAR ───────── */
 
 .sidebar {
-    width: 270px;
+    width: 280px;
     min-height: 100vh;
-    background: linear-gradient(180deg, #4f46e5, #9333ea);
-    color: white;
+    background: linear-gradient(180deg, #15152a 0%, #0e0e1c 100%);
+    border-right: 1px solid var(--border-soft);
+    color: var(--text-base);
     display: flex;
     flex-direction: column;
-    box-shadow: 6px 0 25px rgba(0,0,0,0.15);
+    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.45);
+    position: relative;
 }
 
-/* Header visual vibrante */
+.sidebar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(400px 200px at 50% 0%, rgba(139, 92, 246, 0.18), transparent 60%);
+}
+
+/* Header visual */
 .sidebar-header {
-    padding: 1.8rem;
+    padding: 1.6rem 1.4rem 1.2rem;
+    position: relative;
+    z-index: 1;
 }
 
 .brand-container {
@@ -52,40 +177,149 @@ main {
 }
 
 .brand-logo {
-    width: 80px;
-    height: 45px;
-    background: white;
-    color: #4f46e5;
-    border-radius: 12px;
+    width: 56px;
+    height: 56px;
+    background: var(--grad-purple);
+    color: #fff;
+    border-radius: var(--r-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.2rem;
+    margin-right: 14px;
+    box-shadow: var(--shadow-glow);
+    letter-spacing: 0.5px;
+}
+
+.brand-title {
+    font-weight: 700;
+    font-size: 0.98rem;
+    color: var(--text-strong);
+    line-height: 1.2;
+}
+
+.brand-subtitle {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* Bloque usuario/roles dentro del sidebar */
+.sidebar .border-bottom {
+    border-bottom: 1px solid var(--border-soft) !important;
+    color: var(--text-muted) !important;
+}
+.sidebar .text-white-50 {
+    color: var(--text-muted) !important;
+}
+
+/* ───── Sidebar user card (tarjeta de perfil del usuario logueado) ───── */
+.sidebar-user-card {
+    margin: 0.4rem 0.9rem 0.6rem;
+    padding: 0.85rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.08));
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-md);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 6px 18px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 1;
+}
+
+.sidebar-user-avatar {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--grad-purple);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 14px var(--accent-glow);
+    text-transform: uppercase;
+}
+
+.sidebar-user-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.sidebar-user-name {
+    color: var(--text-strong);
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+
+.sidebar-user-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.sidebar-role-pill {
+    display: inline-block;
+    padding: 2px 9px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #ddd6fe;
+    background: rgba(139, 92, 246, 0.22);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    border-radius: var(--r-pill);
+    line-height: 1.4;
+}
+
+.sidebar-role-pill--warn {
+    color: #fcd34d;
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+
+/* ───────── 3. TOP NAVBAR ───────── */
+
+.top-row {
+    height: 64px;
+    background: rgba(20, 20, 35, 0.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-md);
+    margin: 1rem 0 0;
+    padding: 0 1.25rem !important;
+    color: var(--text-base);
+}
+
+.top-row span {
+    color: var(--text-strong);
+    font-weight: 600;
+}
+
+.user-avatar {
+    width: 38px;
+    height: 38px;
+    background: var(--grad-purple);
+    color: white;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    margin-right: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-.brand-title {
-    font-weight: 600;
-    font-size: 1.05rem;
-}
-
-.brand-subtitle {
-    font-size: 0.75rem;
-    opacity: 0.8;
-}
-
-
-/* Navbar superior limpia */
-.top-navbar {
-    height: 60px;
-    background: rgba(255,255,255,0.85);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(0,0,0,0.05);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 1.5rem;
+    box-shadow: var(--shadow-glow);
 }
 
 .menu-toggle {
@@ -93,75 +327,470 @@ main {
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-}
-
-.user-avatar {
-    width: 38px;
-    height: 38px;
-    background: linear-gradient(135deg, #4f46e5, #9333ea);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
+    color: var(--text-strong);
 }
 
 
-/* ───────── 4. ICONOS DE NAVEGACION ───────── */
-
-.nav-icon {
-    margin-right: 14px;
-    font-size: 1rem;
-}
-
-
-/* ───────── 5. ITEMS DE NAVEGACION ───────── */
+/* ───────── 4. NAVEGACION LATERAL ───────── */
 
 .nav-scrollable {
-    padding: 1rem 0;
+    padding: 0.6rem 0.6rem;
+    position: relative;
+    z-index: 1;
+    overflow-y: auto;
 }
 
 .nav-item {
-    margin: 6px 0;
+    margin: 4px 0;
+}
+
+.nav-icon {
+    margin-right: 12px;
+    font-size: 1rem;
+    width: 22px;
+    text-align: center;
 }
 
 .nav-link {
     display: flex;
     align-items: center;
-    padding: 0.8rem 1.4rem;
-    color: rgba(255,255,255,0.85);
+    padding: 0.7rem 1rem;
+    color: var(--text-muted);
     text-decoration: none;
-    border-radius: 12px;
-    transition: 0.25s ease;
+    border-radius: var(--r-md);
+    transition: all 0.22s ease;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border: 1px solid transparent;
 }
 
-/* Hover más llamativo */
 .nav-link:hover {
-    background: rgba(255,255,255,0.15);
-    transform: translateX(6px);
-    color: white;
+    background: rgba(139, 92, 246, 0.08);
+    border-color: var(--border-soft);
+    color: var(--text-strong);
+    transform: translateX(3px);
 }
 
-/* Activo con efecto glow */
 .nav-link.active {
-    background: white;
-    color: #4f46e5;
+    background: var(--grad-purple);
+    color: #fff;
     font-weight: 600;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    border-color: transparent;
+    box-shadow: var(--shadow-glow);
+}
+
+.nav-link.active .nav-icon { filter: drop-shadow(0 0 6px rgba(255,255,255,0.5)); }
+
+
+/* ───────── 5. TARJETAS (CARDS) ───────── */
+
+.card {
+    background: linear-gradient(160deg, var(--bg-elev-1), var(--bg-elev-2));
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-lg) !important;
+    box-shadow: var(--shadow-card);
+    color: var(--text-base);
+    overflow: hidden;
+}
+
+.card-header {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.12));
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text-strong);
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+}
+
+.card-body {
+    background: transparent;
+    color: var(--text-base);
+    padding: 1.4rem;
+}
+
+.card.shadow-sm { box-shadow: var(--shadow-card) !important; }
+
+/* Texto auxiliar dentro del card */
+.card .text-muted { color: var(--text-muted) !important; }
+
+
+/* ───────── 6. BOTONES ───────── */
+
+.btn {
+    border-radius: var(--r-pill);
+    padding: 0.55rem 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    transition: all 0.22s ease;
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+}
+
+.btn-sm {
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+}
+
+/* Primary -> Gradiente violeta */
+.btn-primary {
+    background: var(--grad-purple);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35);
+}
+.btn-primary:hover,
+.btn-primary:focus {
+    background: var(--grad-purple);
+    filter: brightness(1.1);
+    box-shadow: 0 8px 28px rgba(139, 92, 246, 0.55);
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+/* Success -> verde con tinte coherente */
+.btn-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+}
+.btn-success:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 8px 28px rgba(16, 185, 129, 0.5);
+    transform: translateY(-1px);
+}
+
+/* Warning -> amarillo/ambar */
+.btn-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #1a1a2b;
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+}
+.btn-warning:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 8px 28px rgba(245, 158, 11, 0.45);
+    color: #1a1a2b;
+    transform: translateY(-1px);
+}
+
+/* Danger */
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+}
+.btn-danger:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 8px 28px rgba(239, 68, 68, 0.5);
+    transform: translateY(-1px);
+}
+
+/* Secondary -> oscuro coherente */
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-base);
+    border-color: var(--border-mid);
+}
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-strong);
+}
+
+/* Outline variants */
+.btn-outline-primary {
+    background: transparent;
+    color: #c4b5fd;
+    border-color: rgba(139, 92, 246, 0.5);
+}
+.btn-outline-primary:hover {
+    background: var(--grad-purple);
+    color: #fff;
+    border-color: transparent;
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    color: var(--text-base);
+    border-color: var(--border-mid);
+}
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-strong);
+    border-color: var(--border-mid);
+}
+
+.btn-outline-danger {
+    background: transparent;
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.5);
+}
+.btn-outline-danger:hover {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    border-color: transparent;
+}
+
+.btn-link {
+    color: #c4b5fd;
+    border-radius: var(--r-pill);
+    background: transparent;
+}
+.btn-link:hover { color: #ddd6fe; }
+
+
+/* ───────── 7. FORMULARIOS ───────── */
+
+.form-label {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.2px;
+}
+
+.form-control,
+.form-select {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-strong);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--r-md);
+    padding: 0.6rem 0.9rem;
+    transition: all 0.2s ease;
+    box-shadow: none;
+}
+
+.form-control::placeholder { color: var(--text-faded); }
+
+.form-control:focus,
+.form-select:focus {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--accent-1);
+    color: var(--text-strong);
+    box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.18);
+    outline: none;
+}
+
+.form-control[readonly],
+.form-control:disabled {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* Select: ocultamos la flecha nativa y dibujamos solo una flecha SVG
+   custom en la esquina derecha. Sin repeat, con tamano explicito. */
+.form-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23c4b5fd' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    background-size: 14px 10px;
+    padding-right: 2.4rem;
+}
+
+/* Quitar la flecha nativa en IE/Edge antiguo */
+.form-select::-ms-expand {
+    display: none;
+}
+
+.form-select option {
+    background: var(--bg-elev-2);
+    color: var(--text-strong);
 }
 
 
-/* ───────── 6. RESPONSIVE ───────── */
+/* ───────── 8. TABLAS ───────── */
+
+.table {
+    background: linear-gradient(160deg, var(--bg-elev-1), var(--bg-elev-2));
+    color: var(--text-base);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    border-collapse: separate;
+    border-spacing: 0;
+    box-shadow: var(--shadow-card);
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.table thead.table-dark,
+.table thead {
+    background: var(--grad-purple);
+}
+
+.table thead.table-dark th,
+.table thead th {
+    background: transparent;
+    color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.6px;
+    padding: 0.95rem 1rem;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.table tbody tr {
+    background: transparent;
+    transition: background 0.2s ease;
+}
+
+.table tbody td {
+    background: transparent;
+    color: var(--text-base);
+    padding: 0.85rem 1rem;
+    border-top: 1px solid var(--border-soft);
+    vertical-align: middle;
+}
+
+.table.table-striped tbody tr:nth-of-type(odd) > * {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-base);
+}
+
+.table.table-hover tbody tr:hover > * {
+    background: rgba(139, 92, 246, 0.10);
+    color: var(--text-strong);
+}
+
+
+/* ───────── 9. ALERTAS ───────── */
+
+.alert {
+    border-radius: var(--r-md);
+    border: 1px solid var(--border-soft);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 1rem 1.2rem;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(139, 92, 246, 0.10));
+    color: #ddd6fe;
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.alert-success {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.06));
+    color: #86efac;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.06));
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.06));
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.alert .alert-heading { color: inherit; }
+
+/* Boton de cerrar de alert (Bootstrap usa SVG negro) */
+.alert .btn-close {
+    filter: invert(1) grayscale(100%) brightness(2);
+    opacity: 0.65;
+}
+.alert .btn-close:hover { opacity: 1; }
+
+
+/* ───────── 10. CONTAINER Y MISC ───────── */
+
+.container {
+    max-width: 1280px;
+}
+
+/* Scrollbar custom para webkit */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #5b21b6, #4c1d95);
+    border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--grad-purple);
+}
+
+/* Inputs tipo numero: ocultar spinners feos */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Animacion sutil de entrada para cards */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.card, .alert, .table { animation: fadeUp 0.35s ease-out both; }
+
+
+/* ───────── 11. PAGINAS DE AUTH (LOGIN, RESET) ───────── */
+
+/* Las pantallas de auth no usan sidebar: centramos su tarjeta sobre
+   un fondo violeta etereo. */
+body.bg-light .container { max-width: 480px; }
+
+body.bg-light h2.fw-bold {
+    color: var(--text-strong);
+    background: var(--grad-purple);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Wrappers de pantallas de autenticacion (sin sidebar).
+   Reemplazan los antiguos style="max-width: ...; margin-top: ...;" */
+.auth-screen {
+    max-width: 480px;
+    margin-top: 5rem;
+}
+.auth-screen--sm {
+    max-width: 420px;
+    margin-top: 8rem;
+}
+.auth-screen--md {
+    max-width: 520px;
+}
+
+
+/* ───────── 12. UTILIDADES SEMANTICAS ─────────
+   Pequenas clases que reemplazan los antiguos atributos style="..." inline
+   dispersos en los templates. NO cambian la funcionalidad, solo el look. */
+
+/* Input del filtro "Limite" usado en todas las tablas CRUD */
+.input-limite {
+    width: 110px;
+}
+
+/* Formularios inline para acciones de eliminar (estaba como style="display:inline") */
+.form-inline {
+    display: inline;
+}
+
+
+/* ───────── 13. RESPONSIVE ───────── */
+
+@media (max-width: 992px) {
+    .sidebar { width: 240px; }
+    main { padding: 1rem 1.25rem 2rem; }
+}
 
 @media (max-width: 768px) {
+    .page { flex-direction: column; }
     .sidebar {
-        position: absolute;
-        left: -270px;
-        transition: 0.3s ease;
+        width: 100%;
+        min-height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-soft);
     }
-
-    .sidebar.active {
-        left: 0;
-    }
+    main { padding: 1rem; }
+    .top-row { flex-wrap: wrap; height: auto; padding: 0.75rem 1rem !important; }
+    .table { font-size: 0.85rem; }
 }
