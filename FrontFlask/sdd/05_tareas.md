@@ -87,11 +87,16 @@ CRUDs simples (una sola tabla, sin FKs complicadas). Se pueden hacer en paralelo
 
 ### 5.1 Stored Procedures en BD
 
-- [x] Crear SP `sp_insertar_proyecto_y_productos` en PostgreSQL
-- [x] Crear SP `sp_actualizar_proyecto_y_productos` (replace-all de productos)
-- [x] Crear SP `sp_borrar_proyecto_y_productos` (cascada controlada)
-- [x] Crear SP `sp_consultar_proyecto_y_productos` (lee proyecto + productos)
+Los 5 SPs reales definidos en `ProcedimientosAlmacenados.sql`:
+
+- [x] Crear SP `sp_consultar_proyecto_y_productos(p_id INT)` — devuelve `{ proyecto, productos[] }`
+- [x] Crear SP `sp_insertar_proyecto_y_productos(p_id, p_titulo, ...)` — autocalcula IDs si vienen NULL
+- [x] Crear SP `sp_actualizar_proyecto_y_productos(p_id, ...)` — **SYNC diferencial** (UPDATE/INSERT/DELETE)
+- [x] Crear SP `sp_borrar_proyecto_y_productos(p_id)` — limpia las 7 tablas puente + productos y borra el maestro
+- [x] Crear SP `sp_listar_proyecto_y_productos(p_limite)` (opcional) — lista con productos anidados
 - [x] Probar SPs desde pgAdmin/Neon Console antes de integrar
+
+> **No hay triggers**: toda la lógica transaccional vive en los SPs.
 
 ### 5.2 Frontend Flask
 
@@ -254,7 +259,7 @@ CRUDs simples (una sola tabla, sin FKs complicadas). Se pueden hacer en paralelo
 
 ## Tareas pendientes (siguiente entrega)
 
-- [ ] Tabla `rutarol` en BD para reemplazar las reglas hardcodeadas en `auth_service.py`
+- [ ] Tablas `ruta` y `rutarol` en BD para reemplazar las reglas hardcodeadas en `auth_service.py` (actualmente las rutas permitidas por rol se calculan en `calcular_rutas_permitidas`)
 - [ ] Paginación real para tablas con muchos registros
 - [ ] Exportación de listados a PDF/Excel
 - [ ] Dashboard con estadísticas (proyectos por área, productos por docente)
@@ -275,7 +280,7 @@ Siguiendo Spec-Kit, estos son los artefactos que se produjeron:
 | `plan.md` | [sdd/04_plan.md](04_plan.md) |
 | `tasks.md` | [sdd/05_tareas.md](05_tareas.md) (ESTE archivo) |
 | Código fuente | [app.py](../app.py), [routes/](../routes/), [services/](../services/), [templates/](../templates/) |
-| Stored Procedures | `sp_insertar_proyecto_y_productos`, `sp_actualizar_...`, `sp_borrar_...`, `sp_consultar_...` |
+| Stored Procedures | `sp_consultar_proyecto_y_productos`, `sp_insertar_proyecto_y_productos`, `sp_actualizar_proyecto_y_productos` (SYNC diferencial), `sp_borrar_proyecto_y_productos`, `sp_listar_proyecto_y_productos` |
 
 > *"Lo más importante del SDD es que la documentación es un entregable que se versiona, y el código es el resultado de esta documentación."*
 
@@ -304,5 +309,5 @@ Siguiendo Spec-Kit, estos son los artefactos que se produjeron:
 
 - **Versión**: 1.0
 - **Fecha**: 2026-05-21
-- **Autores**: Samuel Giraldo, Jostin (Estudiantes Diseño de Software USB)
+- **Autores**: Samuel Giraldo, Jostin (Estudiantes Construcción de Software USB)
 - **Referencia Spec-Kit**: [github.com/github/spec-kit](https://github.com/github/spec-kit)
