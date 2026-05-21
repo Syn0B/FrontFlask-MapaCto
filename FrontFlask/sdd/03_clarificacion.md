@@ -67,7 +67,7 @@ Sin JWT, alguien puede abrir Postman y hacer `DELETE /api/proyecto/id/5` sin hab
 
 ### P: ¿Qué pasa con los campos FK en los formularios?
 
-**R**: Se renderizan como `<select>` cargados desde la API. Ejemplo: en `producto`, el campo `fktipo_producto` se muestra como un dropdown con todos los tipos de producto. El template hace `{% for t in tipos_producto %}` para llenar las opciones.
+**R**: Se renderizan como `<select>` cargados desde la API. Ejemplo: en `producto`, el campo `tipo_producto` (FK a `tipo_producto.id`) se muestra como un dropdown con todos los tipos de producto. El template hace `{% for t in tipos_producto %}` para llenar las opciones. Nota: en este esquema las FKs **no usan prefijo `fk`**, las columnas se llaman como la entidad referenciada (ej: `proyecto`, `tipo_producto`, `area_aplicacion`).
 
 ### P: ¿Y si una tabla tiene muchos registros (1000+)?
 
@@ -85,9 +85,9 @@ Sin JWT, alguien puede abrir Postman y hacer `DELETE /api/proyecto/id/5` sin hab
 
 ## 4. Preguntas resueltas sobre el descubrimiento dinámico
 
-### P: ¿Por qué no hardcodear `fkemail` y `fkidrol`?
+### P: ¿Por qué no hardcodear `usuario_id` y `rol_id`?
 
-**R**: Porque si otra BD usa `id_usuario` o `email_usuario`, el código deja de funcionar. El descubrimiento dinámico vía `/api/estructuras/basedatos` permite que el mismo código funcione con cualquier BD que tenga las 5 tablas de auth, sin importar cómo se llamen las columnas.
+**R**: Porque si otra BD usa `id_usuario` o `email_usuario` en lugar de `usuario_id`, el código deja de funcionar. El descubrimiento dinámico vía `/api/estructuras/basedatos` permite que el mismo código funcione con cualquier BD que tenga las 3 tablas de auth (`usuario`, `rol`, `rol_usuario`), sin importar cómo se llamen las columnas.
 
 ### P: ¿Qué pasa si la API no tiene el endpoint `/api/estructuras`?
 
@@ -152,13 +152,13 @@ Sin JWT, alguien puede abrir Postman y hacer `DELETE /api/proyecto/id/5` sin hab
 
 **R**: Porque un proyecto dura años y produce múltiples productos en distintas fechas. La `fecha_entrega` del producto es independiente del rango del proyecto y permite saber exactamente cuándo se generó cada entregable.
 
-### P: ¿Por qué `usuario` tiene `email` como PK y no un id numérico?
+### P: ¿Por qué `usuario` tiene `id` como PK y no usa `email` o `username` directamente?
 
-**R**: Porque el email es único y natural — es lo que el usuario escribe para hacer login. Usar un id numérico obligaría a hacer un JOIN extra para buscar por email. Además, simplifica las FKs en `rol_usuario` (`fkemail` es legible).
+**R**: En el esquema real, `usuario.id` es PK (serial) y tanto `username` como `email` son UNIQUE. Se usa `id` como PK porque las FKs en `rol_usuario` apuntan a un entero (`usuario_id`), lo que es más eficiente y robusto: si en el futuro un usuario cambia su `username` o `email`, no hay que actualizar tablas dependientes. Además, `ON DELETE CASCADE` en `rol_usuario.usuario_id` permite limpiar asignaciones automáticamente.
 
 ### P: ¿Por qué las tablas de seguridad están separadas de las de negocio?
 
-**R**: Principio de Single Responsibility (SOLID - S). Las tablas de negocio (`proyecto`, `producto`, `docente`) manejan datos del dominio. Las tablas de seguridad (`rol`, `ruta`) manejan permisos. Si un día se cambia el sistema de permisos, no se tocan las tablas de negocio.
+**R**: Principio de Single Responsibility (SOLID - S). Las tablas de negocio (`proyecto`, `producto`, `docente`) manejan datos del dominio. Las tablas de seguridad (`usuario`, `rol`, `rol_usuario`) manejan permisos. Si un día se cambia el sistema de permisos (por ejemplo, agregando una tabla de rutas en BD), no se tocan las tablas de negocio.
 
 ### P: ¿Por qué no usar herencia de tablas (una tabla padre "persona" para `docente` y `aliado`)?
 
@@ -195,5 +195,5 @@ Sin JWT, alguien puede abrir Postman y hacer `DELETE /api/proyecto/id/5` sin hab
 
 - **Versión**: 1.0
 - **Fecha**: 2026-05-21
-- **Autores**: Samuel Giraldo, Jostin (Estudiantes Diseño de Software USB)
+- **Autores**: Samuel Giraldo, Jostin (Estudiantes Construcción de Software USB)
 - **Referencia Spec-Kit**: [github.com/github/spec-kit](https://github.com/github/spec-kit)
